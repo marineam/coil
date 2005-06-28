@@ -69,7 +69,10 @@ def test():
     keychainImap = Struct(password="",
                           imap=Struct(imapClient, password=Link(PARENT, "password")))
 
-    # XXX smartfrog would let us say, imap:username = 'joe', imap:server:host = 'example.com'
+    # XXX smartfrog would let us say, imap:username = 'joe',
+    # imap:server:host = 'example.com'. perhaps niceties like that can
+    # be done behind the scenes in the non-code config language,
+    # or perhaps straight python should do them too
     joeKeychain = Struct(keychainImap, password="mypassword",
                          imap=Struct(keychainImap.imap, username="joe"))
     assert joeKeychain.imap.password == "mypassword"
