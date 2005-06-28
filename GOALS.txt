@@ -1,0 +1,31 @@
+Coil: A Vaporware Configuration System
+
+
+Design goals:
+
+- Support non-Twisted reactor driven Python programs
+
+- Scalable to complex configurations
+
+- Scalable to many machines; for example, 50 machines that have almost
+  same config with only minor changes to each should be easy to do.
+
+- Orthogonal to code; code should not be required to know about the
+  config system used, it should be regular Python or Twisted code
+
+- Encourage design of code to be easily extendable and pluggable and
+  not tightly coupled
+
+- Maybe? Changeable at runtime; if not in first revision, should be
+kept in mind for further enhancement
+
+
+Outside the scope:
+
+- Distributed configuration (configuration that spans more than one
+  process)
+
+- Generic data editing; e.g. credentialchecker user editing tools
+  would not be covered, but choosing which checker to use and for say
+  a passwd format checker which file to point it would be in scope of
+  project
