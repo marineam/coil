@@ -16,6 +16,15 @@ Design goals:
 - Encourage design of code to be easily extendable and pluggable and
   not tightly coupled
 
+- Encourage creation of pre-made configuration libraries
+
+- Minimal boilerplate
+
+- Python object representation for automatic code generation as well
+  as human editable text format which is not code (James pointed out
+  how this is helpful, e.g. binding to pre-1024 ports, then changing
+  uid, without actually importing any user code)
+
 - Maybe? Changeable at runtime; if not in first revision, should be
 kept in mind for further enhancement
 

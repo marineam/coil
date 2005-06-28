@@ -1,0 +1,33 @@
+== Why not ZCML? ==
+
+ZCML has two main issues:
+
+1. Lots of boilerplate required. Probably more than e.g. the ops
+   people at my company will want to deal with.
+
+2. Currently no way to take existing config and override parts of it,
+   so it won't scale to multiple similar configs. I may be wrong about
+   this - but this implies there are limits to overriding:
+
+<J1m> People can "change" the configuration of the package by providing their own configuration file that overrides parts of the original config.
+<J1m> One issue we have though is with subscribers.
+<J1m> Which are currently not overridable.
+<J1m> I'd like to add the ability to override sections of a configuration file.
+<J1m> Something like: <configure id="foo">...</configure>
+<J1m> would define a section that could be overridden by a section with the same name.
+
+These issues may be fixable...
+
+== Inspiration: SmartFrog ==
+
+SmartFrog (http://www.hpl.hp.com/research/smartfrog/ - see the papers
+section for details) is a distributed configuration system; as such,
+much of what it does is outside the scope for initial coil
+developed. It does have one major idea we want: prototype-based data
+driven configuration. By prototype based I mean a model similar to the
+way Self (maybe ECMAScript too) object system works: there are no
+subclassing or instantiation, there is only extending of other
+objects.
+
+
+...
