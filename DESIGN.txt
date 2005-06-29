@@ -30,4 +30,19 @@ subclassing or instantiation, there is only extending of other
 objects.
 
 
-...
+== The Plan ==
+
+A loaded configuration is a tree of Python Struct objects.
+
+This tree of Struct objects can be rendered to application logic
+Python objects. Probably this is done by a special attribute
+'@factory' that is a string with a fully qualified Python path
+pointing to a callable that accepts a single argument, the Struct it
+is on with its attributes pre-rendered.
+
+At some point there will be a text representation which can be loaded
+to or saved from the Python Struct representation.
+
+'@interface' could point at an Interface specifying typing information
+ala formless or zope's schema stuff as used in ZCML for the attributes
+of a specific struct.
