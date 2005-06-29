@@ -5,61 +5,65 @@ Structs can extend other structs (i.e. use another as a prototype).
 
 __metaclass__ = type
 
-PARENT = object()
+CONTAINER = object()
 ROOT = object()
 
 class Link:
-    """A link to a configuration atom."""
+    """A lazy link to a configuration atom.
+
+    Resolution will be done only when follow() is called.
+    """
 
     def __init__(self, *path):
-        self._path = path
-
-    def follow(self, node):
-        """Get item at end of path."""
-        for p in self._path:
-            if p is PARENT:
-                node = node.__parent__
-            elif p is ROOT:
-                while node.__parent__ != None:
-                    node = node.__parent__
-            else:
-                node = getattr(node, p)
-        return node
+        self.path = path
 
 
 class Struct:
     """A configuration structure.
 
     __extends__: another Struct that acts as a prototype for this one.
-    __parent__: container.
     """
 
     def __init__(self, __extends__=None, **attrs):
         self.__extends__ = __extends__
-        # XXX this is horrible, maybe __parent__ should be done using
-        # another class that is tuple of (parent, struct) essentially
-        self.__parent__ = None
         self._attrs = attrs
-        for key, val in attrs.items():
-            if isinstance(val, Struct):
-                # create copy that has self as parent
-                val = Struct(val)
-                val.__parent__ = self
-                self._attrs[key] = val
 
-    def __get(self, attr, realNode):
+    def get(self, attr):
+        """Get an attribute, checking prototypes as necessary."""
         if self._attrs.has_key(attr):
-            val = self._attrs[attr]
-            if isinstance(val, Link):
-                val = val.follow(realNode)
-            return val
+            return self._attrs[attr]
         elif self.__extends__ is not None:
-            return self.__extends__.__get(attr, realNode)
+            return self.__extends__.get(attr)
         else:
             raise AttributeError, attr
+
+        
+class StructNode:
+    """A wrapper for Structs that knows about containment."""
+
+    def __init__(self, struct, container=None):
+        self._struct = struct
+        self._container = container
+
+    def _followLink(self, link):
+        node = self
+        for p in link.path:
+            if p is CONTAINER:
+                node = node._container
+            elif p is ROOT:
+                while node._container != None:
+                    node = node._container
+            else:
+                node = getattr(node, p)
+        return node
     
     def __getattr__(self, attr):
-        return self.__get(attr, self)
+        val = self._struct.get(attr)
+        if isinstance(val, Struct):
+            val = StructNode(val, self)
+        elif isinstance(val, Link):
+            val = self._followLink(val)
+        return val
 
 
 def test():
@@ -67,14 +71,14 @@ def test():
                         username="",
                         password="")
     keychainImap = Struct(password="",
-                          imap=Struct(imapClient, password=Link(PARENT, "password")))
+                          imap=Struct(imapClient, password=Link(CONTAINER, "password")))
 
     # XXX smartfrog would let us say, imap:username = 'joe',
     # imap:server:host = 'example.com'. perhaps niceties like that can
     # be done behind the scenes in the non-code config language,
     # or perhaps straight python should do them too
-    joeKeychain = Struct(keychainImap, password="mypassword",
-                         imap=Struct(keychainImap.imap, username="joe"))
+    joeKeychain = StructNode(Struct(keychainImap, password="mypassword",
+                                    imap=Struct(keychainImap.get("imap"), username="joe")))
     assert joeKeychain.imap.password == "mypassword"
     assert joeKeychain.imap.username == "joe"
     assert joeKeychain.imap.server.host == "localhost"
