@@ -37,17 +37,18 @@ class StructAttributeError(AttributeError):
 
 
 class Struct:
-    """A configuration structure.
-
-    @param prototype: another Struct that acts as a prototype for
-    this one.
-    @param attrs: a list of (name, value) tuples. If name contains ':'
-    this will be taken to indicate a path.
-    @param deletedAttrs: a list of attribute names that, though
-    present in the prototype, should not be present in this instance.
-    """
+    """A configuration structure."""
 
     def __init__(self, prototype, attrs=(), deletedAttrs=()):
+        """
+        @param prototype: another Struct that acts as a prototype for
+        this one.
+        @param attrs: a list of (name, value) tuples. If name contains
+        ':' this will be taken to indicate a path.
+        @param deletedAttrs: a list of attribute names that, though
+        present in the prototype, should not be present in this
+        instance.
+        """
         assert prototype is None or isinstance(prototype, Struct)
         self.prototype = prototype
         self._deletedAttrs = sets.Set(deletedAttrs)
@@ -72,13 +73,13 @@ class Struct:
                     self._attrsOrder.append(key)
             self._attrsDict[key] = value
         else:
-            if not self._attrsDict.has_key(key):
+            if key not in self._attrsDict:
                 self._attrsDict[key] = Struct(self.prototype.get(key))
             self._attrsDict[key]._add(path, value)
 
     def get(self, attr):
         """Get an attribute, checking prototypes as necessary."""
-        if self._attrsDict.has_key(attr):
+        if attr in self._attrsDict:
             return self._attrsDict[attr]
         elif self.prototype is not None and attr not in self._deletedAttrs:
             return self.prototype.get(attr)
