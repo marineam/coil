@@ -1,0 +1,1 @@
+"""Coil: A Configuration Library."""
