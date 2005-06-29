@@ -17,27 +17,68 @@ class Link:
     def __init__(self, *path):
         self.path = path
 
+class StructAttributeError(AttributeError):
+    pass
+
 
 class Struct:
     """A configuration structure.
 
-    __extends__: another Struct that acts as a prototype for this one.
+    @param prototype: another Struct that acts as a prototype for
+    this one.
+    @param attrs: a list of (name, value) tuples. If name contains ':'
+    this will be taken to indicate a path.
     """
 
-    def __init__(self, __extends__=None, **attrs):
-        self.__extends__ = __extends__
-        self._attrs = attrs
+    def __init__(self, prototype, attrs=()):
+        assert prototype is None or isinstance(prototype, Struct)
+        self.prototype = prototype
+        self._attrsOrder = []
+        self._attrsDict = {}
+        for key, value in attrs:
+            if ":" in key:
+                self._add(key.split(":"), value)
+            else:
+                self._add([key], value)
+
+    def _add(self, path, value):
+        key = path.pop(0)
+        if not path:
+            if self.prototype is None:
+                self._attrsOrder.append(key)
+            else:
+                try:
+                    self.prototype.get(key)
+                except StructAttributeError:
+                    pass
+                else:
+                    self._attrsOrder.append(key)
+            self._attrsDict[key] = value
+        else:
+            if not self._attrsDict.has_key(key):
+                self._attrsDict[key] = Struct(self.prototype.get(key))
+            self._attrsDict[key]._add(path, value)
 
     def get(self, attr):
         """Get an attribute, checking prototypes as necessary."""
-        if self._attrs.has_key(attr):
-            return self._attrs[attr]
-        elif self.__extends__ is not None:
-            return self.__extends__.get(attr)
+        if self._attrsDict.has_key(attr):
+            return self._attrsDict[attr]
+        elif self.prototype is not None:
+            return self.prototype.get(attr)
         else:
-            raise AttributeError, attr
+            raise StructAttributeError, attr
 
-        
+    def _strBody(self):
+        if self.prototype is not None:
+            s = self.prototype._strBody()
+        else:
+            s = ""
+        return s + "".join([("%s: %s\n" % (key, self._attrsDict[key])) for key in self._attrsOrder])
+    
+    def __str__(self):
+        return "<Struct: \n%s\n>" % (self._strBody(),)
+
+
 class StructNode:
     """A wrapper for Structs that knows about containment."""
 
@@ -67,21 +108,24 @@ class StructNode:
 
 
 def test():
-    imapClient = Struct(server=Struct(host="localhost", port=0),
-                        username="",
-                        password="")
-    keychainImap = Struct(password="",
-                          imap=Struct(imapClient, password=Link(CONTAINER, "password")))
-
-    # XXX smartfrog would let us say, imap:username = 'joe',
-    # imap:server:host = 'example.com'. perhaps niceties like that can
-    # be done behind the scenes in the non-code config language,
-    # or perhaps straight python should do them too
-    joeKeychain = StructNode(Struct(keychainImap, password="mypassword",
-                                    imap=Struct(keychainImap.get("imap"), username="joe")))
+    server = Struct(None, [('host', "localhost"),
+                           ('port', 0)])
+    imapClient = Struct(None,
+                        [('server', server),
+                         ('username', ""),
+                         ('password', "")])
+    keychainImap = Struct(None,
+                          [('password', ""),
+                           ('description', "a keychain"),
+                           ('imap', Struct(imapClient, [('password',  Link(CONTAINER, "password"))]))])
+    joeKeychain = StructNode(Struct(keychainImap,
+                                    [('password', "mypassword"),
+                                     ('imap:username', "joe")]))
+    assert joeKeychain.description == "a keychain"
     assert joeKeychain.imap.password == "mypassword"
     assert joeKeychain.imap.username == "joe"
     assert joeKeychain.imap.server.host == "localhost"
+    print joeKeychain._struct
     print "OK!"
 
 
