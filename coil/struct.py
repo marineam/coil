@@ -137,36 +137,3 @@ class StructNode:
         elif isinstance(val, Link):
             val = self._followLink(val)
         return val
-
-
-def test():
-    server = Struct(None, [('host', "localhost"),
-                           ('port', 0)])
-    imapClient = Struct(None,
-                        [('server', server),
-                         ('username', ""),
-                         ('password', "")])
-    keychainImap = Struct(None,
-                          [('password', ""),
-                           ('description', "a keychain"),
-                           ('imap', Struct(imapClient, [('password',  Link(CONTAINER, "password"))]))])
-    joeKeychain = Struct(keychainImap,
-                         [('password', "mypassword"),
-                          ('imap:username', "joe")])
-    joenode = StructNode(joeKeychain)
-    nodesc = Struct(joeKeychain, deletedAttrs=("description",))
-    nodescNode = StructNode(nodesc) 
-    assert joenode.description == "a keychain"
-    assert joenode.imap.password == "mypassword"
-    assert joenode.imap.username == "joe"
-    assert joenode.imap.server.host == "localhost"
-    print joeKeychain
-    assert not hasattr(nodescNode, "description")
-    assert list(joeKeychain.attributes()) == ["password", "description", "imap"]
-    assert list(nodesc.attributes()) == ["password", "imap"]
-    print nodesc
-    print "OK!"
-
-
-if __name__ == '__main__':
-    test()
