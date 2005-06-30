@@ -71,6 +71,10 @@ class Struct:
                     self.prototype.get(key)
                 except StructAttributeError:
                     self._attrsOrder.append(key)
+            if isinstance(value, Struct):
+                # extend in case user inserted same Struct object
+                # multiple times, which really means multiple copies
+                value = Struct(value)
             self._attrsDict[key] = value
         else:
             if key not in self._attrsDict:
@@ -118,6 +122,21 @@ class StructNode:
         self._struct = struct
         self._container = container
 
+    def get(self, attr):
+        val = self._struct.get(attr)
+        if isinstance(val, Struct):
+            val = self._wrap(val)
+        elif isinstance(val, Link):
+            val = self._followLink(val)
+        return val
+
+    def iterkeys(self):
+        return self._struct.attributes()
+
+    def iteritems(self):
+        for i in self.iterkeys():
+            yield (i, self.get(i))
+    
     def _followLink(self, link):
         node = self
         for p in link.path:
@@ -127,13 +146,12 @@ class StructNode:
                 while node._container != None:
                     node = node._container
             else:
+                # XXX use get() if is Struct
                 node = getattr(node, p)
         return node
+
+    def _wrap(self, struct):
+        return self.__class__(struct, self)
     
     def __getattr__(self, attr):
-        val = self._struct.get(attr)
-        if isinstance(val, Struct):
-            val = StructNode(val, self)
-        elif isinstance(val, Link):
-            val = self._followLink(val)
-        return val
+        return self.get(attr)
