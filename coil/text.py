@@ -19,24 +19,24 @@ def pythonString(st):
     
 
 class ParseError(Exception):
-    def __init__(self, linenumber, reason):
-        self.line = linenumber
+    def __init__(self, line, column, reason):
+        self.line = line
+        self.column = column
         self.reason = reason
-        Exception.__init__(self, "%s (line %d)" % (reason, linenumber))
+        Exception.__init__(self, "%s (line %d, column %d)" % (reason, line, column))
 
 
 atomRegex = r'[a-zA-Z]([a-zA-Z0-9_.])*'
 ATOM = re.compile(atomRegex)
-ATTRIBUTE = re.compile(atomRegex + ":")
 DELETEDATTR = re.compile("~" + atomRegex)
 pathRegex = r"[@a-zA-Z]([@a-zA-Z0-9_.])*"
+ATTRIBUTE = re.compile(pathRegex + ":")
 LINK = re.compile("=" + pathRegex)
 STRING = re.compile(r'"([^\\"]|\\.)*"')
 NUMBER = re.compile(r'-?[0-9]+(\.[0-9]*)?')
 whitespaceRegex = '[ \n\r\t]+'
 WHITESPACE = re.compile(whitespaceRegex)
-EXTENDSATTR = re.compile("%s%sextends%s%s:%s{"
-                         % (atomRegex, whitespaceRegex, whitespaceRegex, pathRegex, whitespaceRegex))
+
 
 class PreStruct:
 
@@ -61,9 +61,10 @@ class SymbolicExpressionReceiver(basic.LineReceiver):
         self.attributeStack = []
         self.listStack = []
         self.line = 0
+        self.column = 0
     
     def parseError(self, reason):
-        raise ParseError(self.line, reason)
+        raise ParseError(self.line, self.column, reason)
 
     def openParen(self):
         newCurrentSexp = []
@@ -97,7 +98,22 @@ class SymbolicExpressionReceiver(basic.LineReceiver):
         if not self.attributeStack:
             self.parseError("value with no attribute name")
         attribute = self.attributeStack.pop()
-        self.structStack[-1].attributes.append((attribute, xp))
+        if attribute == "@extends":
+            if not isinstance(xp, struct.Link):
+                self.parseError("@extends must have a link as a value")
+            if self.structStack[-1].extends != None:
+                self.parseError("@extends can only be used once per struct")
+            # XXX kitten killin' time
+            myCopy = copy.deepcopy(self)
+            for a in self.attributeStack:
+                myCopy.closeStruct()
+            node = struct.StructNode(myCopy.structStack[0].create())
+            for a in self.attributeStack:
+                node = node.get(a)
+            extends = node._followLink(xp)
+            self.structStack[-1].extends = extends._struct
+        else:
+            self.structStack[-1].attributes.append((attribute, xp))
 
     def _attributeReceived(self, attribute):
         if len(self.attributeStack) != len(self.structStack) - 1:
@@ -108,23 +124,6 @@ class SymbolicExpressionReceiver(basic.LineReceiver):
         if len(self.attributeStack) != len(self.structStack) - 1:
             self.parseError("attribute not followed by value")
         self.structStack[-1].deletedAttributes.append(attribute)
-
-    def _parseExtends(self, s):
-        s = s.split()
-        assert s[1] == "extends"
-        assert s[3] == "{"
-        # XXX kitten killin' time
-        myCopy = copy.deepcopy(self)
-        for a in myCopy.attributeStack:
-            myCopy.closeStruct()
-        node = struct.StructNode(myCopy.structStack[0].create())
-        for a in self.attributeStack:
-            node = node.get(a)
-        link = self._parseLink(s[2][:-1]) # drop the ':' at the end
-        extends = node._followLink(link)
-        self._attributeReceived(s[0])
-        self.openStruct()
-        self.structStack[-1].extends = extends._struct
 
     linkAtoms = {"@CONTAINER": struct.CONTAINER,
                  "@ROOT": struct.ROOT,
@@ -149,7 +148,9 @@ class SymbolicExpressionReceiver(basic.LineReceiver):
 
     def lineReceived(self, line):
         self.line += 1
-        while line:            
+        origLineLength = len(line)
+        while line:
+            self.column = origLineLength - len(line)
             # eat any whitespace at the beginning of the string.
             m = WHITESPACE.match(line)
             if m:
@@ -209,12 +210,6 @@ class SymbolicExpressionReceiver(basic.LineReceiver):
                 end = m.end()
                 link, line = line[1:end], line[end:]
                 self._linkReceived(link)
-                continue
-            m = EXTENDSATTR.match(line)
-            if m:
-                end = m.end()
-                extendsbit, line = line[:end], line[end:]
-                self._parseExtends(extendsbit)
                 continue
             m = ATOM.match(line)
             if m:

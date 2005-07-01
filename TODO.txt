@@ -4,7 +4,6 @@
 - Better names
 - Text format:
   - String quoting
-  - Extending of other structs
   - Importing
   - Multi-line strings, maybe
 - Serialization of Python objects to text format
@@ -19,6 +18,7 @@
   - UI for editing configuration
 - Configuration mutation?
 - Operators:
-    foo extends bar: {
-        value: bar:value + 2
+    foo: {
+        @extends: =@CONTAINER.bar
+        value: =@CONTAINER.bar.value + 2
     }

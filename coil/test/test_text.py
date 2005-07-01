@@ -100,9 +100,11 @@ bar: {
    c: {d: 7}
 }
 
-foo extends bar: {
+foo: {
+   @extends: =@CONTAINER.bar
    a: 3
-   c extends @ROOT.bar.c: {
+   c: {
+       @extends: =@ROOT.bar.c
        e: 4
    }
    c.f: 9 # nicer way of doing it
