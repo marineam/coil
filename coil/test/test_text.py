@@ -1,7 +1,7 @@
 """Test text format."""
 
 from twisted.trial import unittest
-from coil import text
+from coil import text, struct
 
 
 class TextTestCase(unittest.TestCase):
@@ -77,3 +77,19 @@ struct: {
         root = text.fromString(s).get("struct")
         self.assertEquals(list(root.attributes()), ["a"])
         self.assertEquals(list(root.get("a").attributes()), ["x"])
+
+    def testLink(self):
+        s = '''
+struct: {
+    sub: {a: =@CONTAINER.b c2: =c c: 1}
+    b: 2
+    c: =@ROOT.x
+}
+x: "hello"
+'''
+        root = struct.StructNode(text.fromString(s))
+        self.assertEquals(root.struct.c, "hello")
+        self.assertEquals(root.struct.sub.a, 2)
+        self.assertEquals(root.struct.sub.c2, 1)
+
+                                 

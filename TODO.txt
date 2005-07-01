@@ -4,7 +4,6 @@
 - Better names
 - Text format:
   - String quoting
-  - Links
   - Extending of other structs
   - Importing
   - Multi-line strings, maybe

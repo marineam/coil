@@ -29,6 +29,7 @@ atomRegex = r'[a-zA-Z]([a-zA-Z0-9_.])*'
 ATOM = re.compile(atomRegex)
 ATTRIBUTE = re.compile(atomRegex + ":")
 DELETEDATTR = re.compile("~" + atomRegex)
+LINK = re.compile(r'=[@a-zA-Z]([@a-zA-Z0-9_.])*')
 STRING = re.compile(r'"([^\\"]|\\.)*"')
 NUMBER = re.compile(r'-?[0-9]+(\.[0-9]*)?')
 WHITESPACE = re.compile('[ \n\r\t]+')
@@ -105,6 +106,14 @@ class SymbolicExpressionReceiver(basic.LineReceiver):
             self.parseError("attribute not followed by value")
         self.structStack[-1].deletedAttributes.append(attribute)
 
+    linkAtoms = {"@CONTAINER": struct.CONTAINER,
+                 "@ROOT": struct.ROOT,
+                 }
+    
+    def _linkReceived(self, link):
+        parts = [self.linkAtoms.get(p, p) for p in link.split(".")]
+        self._valueReceived(struct.Link(*parts))
+    
     def _makeAtom(self, st):
         if st == "None":
             return None
@@ -171,6 +180,12 @@ class SymbolicExpressionReceiver(basic.LineReceiver):
                 end = m.end()
                 attribute, line = line[1:end], line[end:]
                 self._deleteReceived(attribute)
+                continue
+            m = LINK.match(line)
+            if m:
+                end = m.end()
+                link, line = line[1:end], line[end:]
+                self._linkReceived(link)
                 continue
             m = ATOM.match(line)
             if m:
