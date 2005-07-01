@@ -1,0 +1,26 @@
+== Short term ==
+
+- More tests
+- Better names
+- Change uniqueness in render from identity-based to path-based
+- Text format:
+  - String quoting
+  - Links
+  - Extending of other structs
+  - Importing
+  - Multi-line strings, maybe
+- Serialization of Python objects to text format
+- Ability to compare structs
+
+
+== Long Term ==
+
+- Interfaces indicating schema information (@provides on structs),
+  which can be adapted to factories when @factory is missing
+  - Ability to check for schema conformance
+  - UI for editing configuration
+- Configuration mutation?
+- Operators:
+    foo extends bar: {
+        value: bar:value + 2
+    }
