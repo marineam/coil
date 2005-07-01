@@ -19,7 +19,7 @@ class InitialStructTestCase(unittest.TestCase):
                                ('imap', struct.Struct(imapClient, [('password',  struct.Link(struct.CONTAINER, "password"))]))])
         self.joeKeychain = struct.Struct(keychainImap,
                                          [('password', "mypassword"),
-                                          ('imap:username', "joe")])
+                                          ('imap.username', "joe")])
         self.joenode = struct.StructNode(self.joeKeychain)
         self.nodesc = struct.Struct(self.joeKeychain, deletedAttrs=("description",))
         self.nodescNode = struct.StructNode(self.nodesc)
@@ -38,3 +38,14 @@ class InitialStructTestCase(unittest.TestCase):
         self.assert_(not hasattr(self.nodescNode, "description"))
         self.assertEquals(list(self.joeKeychain.attributes()), ["password", "description", "imap"])
         self.assertEquals(list(self.nodesc.attributes()), ["password", "imap"])
+
+
+class StructTestCase(unittest.TestCase):
+
+    def testAttributePath(self):
+        s = struct.Struct(None, [("value", 0)])
+        pair = struct.Struct(None,
+                             [("a1", s), ("a2", s), ("a1.value", 2)])
+        n = struct.StructNode(pair)
+        self.assertEquals(n.a1.value, 2)
+        self.assertEquals(n.a2.value, 0)

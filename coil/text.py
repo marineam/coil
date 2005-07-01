@@ -17,55 +17,47 @@ def pythonString(st):
     st = st.replace('\\"', '"')
     return st
     
-class Atom:
-    """
-    class to represent atoms, to distinguish them from strings.
-    """
-    def __init__(self, st):
-        self.string = st
-    def __cmp__(self, other):
-        if isinstance(other, Atom):
-            return cmp(self.string, other.string)
-        else:
-            return cmp(self.string, other)
-
-    def __hash__(self):
-        return hash(self.string)
-    
-    def __repr__(self):
-        return "atom(%s)" % repr(self.string)
-    
-    def __str__(self):
-        return self.string
 
 class ParseError(Exception):
     def __init__(self, linenumber, reason):
         self.line = linenumber
         self.reason = reason
-        Exception.__init__(self, reason)
+        Exception.__init__(self, "%s (line %d)" % (reason, linenumber))
 
 
-# SYMBOL = re.compile(r'[a-zA-Z]([a-zA-Z0-9]|\\.)*')
-atomRegex = r'[^ \n\r\t0-9"\\()]([^ \n\r\t"\[\]()\\]|\\.)*'
+atomRegex = r'[a-zA-Z]([a-zA-Z0-9_.])*'
 ATOM = re.compile(atomRegex)
 ATTRIBUTE = re.compile(atomRegex + ":")
+DELETEDATTR = re.compile("~" + atomRegex)
 STRING = re.compile(r'"([^\\"]|\\.)*"')
 NUMBER = re.compile(r'-?[0-9]+(\.[0-9]*)?')
 WHITESPACE = re.compile('[ \n\r\t]+')
 
 
-class SymbolicExpressionReceiver(basic.LineReceiver):
-    delimiter = "\n"
+class PreStruct:
 
     def __init__(self):
-        self.structStack = [[]] # stack of attribute lists and later paired deleted attributes list
+        self.extends = None
+        self.attributes = []
+        self.deletedAttributes = []
+
+    def create(self):
+        return struct.Struct(self.extends, self.attributes, self.deletedAttributes)
+
+
+class SymbolicExpressionReceiver(basic.LineReceiver):
+
+    delimiter = "\n"
+
+    # I don't ever want to buffer more than 64k of data before bailing.
+    maxUnparsedBufferSize = 32 * 1024 
+
+    def __init__(self):
+        self.structStack = [PreStruct()]
         self.attributeStack = []
         self.listStack = []
         self.line = 0
     
-    # I don't ever want to buffer more than 64k of data before bailing.
-    maxUnparsedBufferSize = 32 * 1024 
-
     def parseError(self, reason):
         raise ParseError(self.line, reason)
 
@@ -81,13 +73,13 @@ class SymbolicExpressionReceiver(basic.LineReceiver):
             self._valueReceived(aList)
 
     def openStruct(self):
-        self.structStack.append([])
+        self.structStack.append(PreStruct())
 
     def closeStruct(self):
         if len(self.structStack) == 1:
             self.parseError("extra or unmatched }")
-        a = self.structStack.pop()
-        self._valueReceived(struct.Struct(None, a))
+        pre = self.structStack.pop()
+        self._valueReceived(pre.create())
 
     def _tokenReceived(self, tok):        
         if self.listStack:
@@ -101,12 +93,17 @@ class SymbolicExpressionReceiver(basic.LineReceiver):
         if not self.attributeStack:
             self.parseError("value with no attribute name")
         attribute = self.attributeStack.pop()
-        self.structStack[-1].append((attribute, xp))
+        self.structStack[-1].attributes.append((attribute, xp))
 
     def _attributeReceived(self, attribute):
         if len(self.attributeStack) != len(self.structStack) - 1:
             self.parseError("two attributes in a row without value")
         self.attributeStack.append(attribute)
+
+    def _deleteReceived(self, attribute):
+        if len(self.attributeStack) != len(self.structStack) - 1:
+            self.parseError("attribute not followed by value")
+        self.structStack[-1].deletedAttributes.append(attribute)
 
     def _makeAtom(self, st):
         if st == "None":
@@ -169,25 +166,36 @@ class SymbolicExpressionReceiver(basic.LineReceiver):
                 attribute, line = line[:end-1], line[end:]
                 self._attributeReceived(attribute)
                 continue
+            m = DELETEDATTR.match(line)
+            if m:
+                end = m.end()
+                attribute, line = line[1:end], line[end:]
+                self._deleteReceived(attribute)
+                continue
             m = ATOM.match(line)
             if m:
                 end = m.end()
                 symbol, line = line[:end], line[end:]
                 self._tokenReceived(self._makeAtom(symbol))
                 continue
-            break
+            else:
+                self.parseError("invalid syntax")
         if len(line) > self.maxUnparsedBufferSize:
             self.parseError("Too much unparsed data.")
 
     def connectionLost(self, reason):
         if len(self.structStack) != 1:
             self.parseError("incomplete tree")
-        self.result = struct.Struct(None, self.structStack.pop())
+        self.result = self.structStack.pop().create()
 
 
-def fromString(st):    
+def fromSequence(iterOfStrings):
     f = SymbolicExpressionReceiver()
-    f.dataReceived(st)
+    for s in iterOfStrings:
+        f.dataReceived(s)
     f.dataReceived("\n")
     f.connectionLost(None)
     return f.result
+
+def fromString(st):    
+    return fromSequence([st])

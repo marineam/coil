@@ -51,18 +51,27 @@ class Struct:
         """
         assert prototype is None or isinstance(prototype, Struct)
         self.prototype = prototype
-        self._deletedAttrs = sets.Set(deletedAttrs)
+        self._deletedAttrs = sets.Set()
         self._attrsOrder = []
         self._attrsDict = {}
         for key, value in attrs:
-            assert key not in self._deletedAttrs
-            if ":" in key:
-                self._add(key.split(":"), value)
-            else:
-                self._add([key], value)
+            self._add(key.split("."), value)
+        for key in deletedAttrs:
+            self._addDelete(key.split("."))
 
+    def _addDelete(self, path):
+        key = path.pop(0)
+        assert key
+        if not path:
+            self._deletedAttrs.add(key)
+        else:
+            # XXX use contructor, maybe?, plus this is inefficient as hell
+            self._attrsDict[key] = Struct(self.get(key))
+            self._attrsDict[key]._addDelete(path)
+    
     def _add(self, path, value):
         key = path.pop(0)
+        assert key
         if not path:
             if self.prototype is None:
                 self._attrsOrder.append(key)
@@ -73,15 +82,17 @@ class Struct:
                     self._attrsOrder.append(key)
             self._attrsDict[key] = value
         else:
-            if key not in self._attrsDict:
-                self._attrsDict[key] = Struct(self.prototype.get(key))
+            # XXX same as in _addDelete
+            self._attrsDict[key] = Struct(self.get(key))
             self._attrsDict[key]._add(path, value)
 
     def get(self, attr):
         """Get an attribute, checking prototypes as necessary."""
+        if attr in self._deletedAttrs:
+            raise StructAttributeError, attr
         if attr in self._attrsDict:
             return self._attrsDict[attr]
-        elif self.prototype is not None and attr not in self._deletedAttrs:
+        elif self.prototype is not None:
             return self.prototype.get(attr)
         else:
             raise StructAttributeError, attr
@@ -93,7 +104,8 @@ class Struct:
                 if i not in self._deletedAttrs:
                     yield i
         for i in self._attrsOrder:
-            yield i
+            if i not in self._deletedAttrs:
+                yield i
     
     def _strBody(self, indent):
         l = []
