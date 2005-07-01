@@ -11,14 +11,15 @@ NotRendered = object()
 class RenderNode(struct.StructNode):
     """Caches rendered results."""
 
-    def __init__(self, s, container=None):
+    def __init__(self, s, container=None, path=()):
         struct.StructNode.__init__(self, s, container)
         if self._container is None:
             self._nodeCache = {}
         else:
             self._nodeCache = self._container._nodeCache
-        self._nodeCache[self._struct] = self
+        self._nodeCache[path] = self
         self._rendered = NotRendered
+        self._path = path
     
     def rendered(self):
         return self._rendered
@@ -31,16 +32,17 @@ class RenderNode(struct.StructNode):
             n = n._container
         return s
     
-    def _wrap(self, st):
-        if st in self._nodeCache:
-            return self._nodeCache[st]
+    def _wrap(self, name, st):
+        path = self._path + (name,)
+        if path in self._nodeCache:
+            return self._nodeCache[path]
         else:
-            return self.__class__(st, self)
+            return self.__class__(st, self, path)
 
 
 def renderStruct(rootStruct):
     """Render a tree of Structs."""
-    root = RenderNode(rootStruct)
+    root = RenderNode(rootStruct, None, ())
     stack = [("", root)]
     while stack:
         # XXX make this less stupid

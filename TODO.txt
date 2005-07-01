@@ -2,7 +2,6 @@
 
 - More tests
 - Better names
-- Change uniqueness in render from identity-based to path-based
 - Text format:
   - String quoting
   - Links

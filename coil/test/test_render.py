@@ -62,6 +62,13 @@ class RenderTestCase(unittest.TestCase):
         self.assertEquals(root.getServiceNamed("a2").x, 0)
         self.assertNotIdentical(root.getServiceNamed("a"), root.getServiceNamed("a2"))
 
+    def testNestingNesting(self):
+        sub = struct.Struct(MSStruct, [("b", BStruct)])
+        c = struct.Struct(MSStruct, [("a", sub), ("a2", sub)])
+        root = render.renderStruct(c)
+        self.assertNotIdentical(root.getServiceNamed("a").getServiceNamed("b"),
+                                root.getServiceNamed("a2").getServiceNamed("b"))
+    
     def testLinkToObject(self):
         c = struct.Struct(None,
                           [("anA", AStruct),
