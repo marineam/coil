@@ -92,4 +92,25 @@ x: "hello"
         self.assertEquals(root.struct.sub.a, 2)
         self.assertEquals(root.struct.sub.c2, 1)
 
-                                 
+    def testSimpleExtends(self):
+        s = '''
+bar: {
+   a: 1
+   b: 2
+   c: {d: 7}
+}
+
+foo extends bar: {
+   a: 3
+   c extends @ROOT.bar.c: {
+       e: 4
+   }
+   c.f: 9 # nicer way of doing it
+}
+'''
+        foo = struct.StructNode(text.fromString(s)).foo
+        self.assertEquals(foo.a, 3)
+        self.assertEquals(foo.b, 2)
+        self.assertEquals(foo.c.d, 7)
+        self.assertEquals(foo.c.e, 4)
+        self.assertEquals(foo.c.f, 9)

@@ -1,6 +1,6 @@
 """Text format for configurations."""
 
-import re
+import re, copy
 
 from twisted.protocols import basic
 
@@ -29,11 +29,14 @@ atomRegex = r'[a-zA-Z]([a-zA-Z0-9_.])*'
 ATOM = re.compile(atomRegex)
 ATTRIBUTE = re.compile(atomRegex + ":")
 DELETEDATTR = re.compile("~" + atomRegex)
-LINK = re.compile(r'=[@a-zA-Z]([@a-zA-Z0-9_.])*')
+pathRegex = r"[@a-zA-Z]([@a-zA-Z0-9_.])*"
+LINK = re.compile("=" + pathRegex)
 STRING = re.compile(r'"([^\\"]|\\.)*"')
 NUMBER = re.compile(r'-?[0-9]+(\.[0-9]*)?')
-WHITESPACE = re.compile('[ \n\r\t]+')
-
+whitespaceRegex = '[ \n\r\t]+'
+WHITESPACE = re.compile(whitespaceRegex)
+EXTENDSATTR = re.compile("%s%sextends%s%s:%s{"
+                         % (atomRegex, whitespaceRegex, whitespaceRegex, pathRegex, whitespaceRegex))
 
 class PreStruct:
 
@@ -106,13 +109,33 @@ class SymbolicExpressionReceiver(basic.LineReceiver):
             self.parseError("attribute not followed by value")
         self.structStack[-1].deletedAttributes.append(attribute)
 
+    def _parseExtends(self, s):
+        s = s.split()
+        assert s[1] == "extends"
+        assert s[3] == "{"
+        # XXX kitten killin' time
+        myCopy = copy.deepcopy(self)
+        for a in myCopy.attributeStack:
+            myCopy.closeStruct()
+        node = struct.StructNode(myCopy.structStack[0].create())
+        for a in self.attributeStack:
+            node = node.get(a)
+        link = self._parseLink(s[2][:-1]) # drop the ':' at the end
+        extends = node._followLink(link)
+        self._attributeReceived(s[0])
+        self.openStruct()
+        self.structStack[-1].extends = extends._struct
+
     linkAtoms = {"@CONTAINER": struct.CONTAINER,
                  "@ROOT": struct.ROOT,
                  }
+
+    def _parseLink(self, linkStr):
+        parts = [self.linkAtoms.get(p, p) for p in linkStr.split(".")]
+        return struct.Link(*parts)
     
-    def _linkReceived(self, link):
-        parts = [self.linkAtoms.get(p, p) for p in link.split(".")]
-        self._valueReceived(struct.Link(*parts))
+    def _linkReceived(self, linkStr):    
+        self._valueReceived(self._parseLink(linkStr))
     
     def _makeAtom(self, st):
         if st == "None":
@@ -186,6 +209,12 @@ class SymbolicExpressionReceiver(basic.LineReceiver):
                 end = m.end()
                 link, line = line[1:end], line[end:]
                 self._linkReceived(link)
+                continue
+            m = EXTENDSATTR.match(line)
+            if m:
+                end = m.end()
+                extendsbit, line = line[:end], line[end:]
+                self._parseExtends(extendsbit)
                 continue
             m = ATOM.match(line)
             if m:
