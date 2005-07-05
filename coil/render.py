@@ -1,4 +1,9 @@
-"""Rendering of Struct objects to Python code."""
+"""Rendering of Struct objects to Python code.
+
+The special attribute __factory__ indicates a fully qualified Python
+path to a callable that will be called with the Struct and return the
+rendered object.
+"""
 
 import sets
 from twisted.python import reflect
@@ -51,7 +56,7 @@ def renderStruct(rootStruct):
         for name, value in node.iteritems():
             if isinstance(value, RenderNode) and value.rendered() is NotRendered:
                 if (name,value) in node.containers():
-                    raise ValueError, "can't render recursive links: %s" % (":".join([p[0] for p in stack]),)
+                    raise ValueError, "can't render recursive links: %s" % (".".join([p[0] for p in stack]),)
                 stack.append((name,value))
                 waitForChildren = True
         if not waitForChildren:
@@ -59,7 +64,9 @@ def renderStruct(rootStruct):
             if node.rendered() is not NotRendered:
                 continue
             try:
-                factory = node.get("@factory") # XXX ick
+                factory = node.get("__factory__")
+                if isinstance(factory, unicode):
+                    factory = factory.encode("ascii")
             except struct.StructAttributeError:
                 factory = lambda x: x
             else:

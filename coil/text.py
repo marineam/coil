@@ -10,11 +10,15 @@ from coil import struct
 def pythonString(st):
     assert st[0] == '"' and st[-1] == '"'
     # strip off the quotes
-    st = st[1:-1]
-    # unescape backslashes
-    st = st.replace('\\\\', '\\')
-    # unescape quotes
-    st = st.replace('\\"', '"')
+    st = st[1:-1].decode("utf-8")
+    for quoted, value in [
+        ('\\\\', '\\'), # backslashes
+        ('\\"', '"'), # quotes
+        ('\\n', '\n'),
+        ('\\r', '\r'),
+        ('\\t', '\t'),
+        ]:
+        st = st.replace(quoted, value)
     return st
     
 
@@ -29,9 +33,9 @@ class ParseError(Exception):
 atomRegex = r'[a-zA-Z]([a-zA-Z0-9_.])*'
 ATOM = re.compile(atomRegex)
 DELETEDATTR = re.compile("~" + atomRegex)
-pathRegex = r"[@a-zA-Z]([@a-zA-Z0-9_.])*"
+pathRegex = r"[@a-zA-Z_]([@a-zA-Z0-9_.])*"
 ATTRIBUTE = re.compile(pathRegex + ":")
-LINK = re.compile("=" + pathRegex)
+LINK = re.compile("=([.])*" + pathRegex)
 STRING = re.compile(r'"([^\\"]|\\.)*"')
 NUMBER = re.compile(r'-?[0-9]+(\.[0-9]*)?')
 whitespaceRegex = '[ \n\r\t]+'
@@ -118,6 +122,8 @@ class SymbolicExpressionReceiver(basic.LineReceiver):
     def _attributeReceived(self, attribute):
         if len(self.attributeStack) != len(self.structStack) - 1:
             self.parseError("two attributes in a row without value")
+        if "@" in attribute and attribute != "@extends":
+            self.parseError("'@' cannot be used in standard attribute names.")
         self.attributeStack.append(attribute)
 
     def _deleteReceived(self, attribute):
@@ -125,12 +131,17 @@ class SymbolicExpressionReceiver(basic.LineReceiver):
             self.parseError("attribute not followed by value")
         self.structStack[-1].deletedAttributes.append(attribute)
 
-    linkAtoms = {"@CONTAINER": struct.CONTAINER,
-                 "@ROOT": struct.ROOT,
-                 }
+    linkAtoms = {"@root": struct.ROOT,}
 
     def _parseLink(self, linkStr):
-        parts = [self.linkAtoms.get(p, p) for p in linkStr.split(".")]
+        parts = []
+        m = re.match("[.]*", linkStr)
+        if m:
+            end = m.end()
+            dots, linkStr = linkStr[:end], linkStr[end:]
+            for i in range(len(dots) - 1):
+                parts.append(struct.CONTAINER)
+        parts.extend([self.linkAtoms.get(p, p) for p in linkStr.split(".")])
         return struct.Link(*parts)
     
     def _linkReceived(self, linkStr):    

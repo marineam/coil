@@ -19,7 +19,7 @@ class ServiceB(service.Service):
 def makeMultiService(node):
     svc = service.MultiService()
     for name, value in node.iteritems():
-        if name.startswith("@"): # XXX guess we need better iteration API
+        if name == "__factory__": # XXX guess we need better iteration API
             continue
         subsvc = value.rendered()
         subsvc.setName(name)
@@ -34,10 +34,10 @@ def makeServiceB(node):
 
 
 AStruct = struct.Struct(None, [("x", 0),
-                               ("@factory", "coil.test.test_render.makeServiceA")])
+                               ("__factory__", "coil.test.test_render.makeServiceA")])
 BStruct = struct.Struct(None, [("y", ""),
-                               ("@factory", "coil.test.test_render.makeServiceB")])
-MSStruct = struct.Struct(None, [("@factory", "coil.test.test_render.makeMultiService")])
+                               ("__factory__", "coil.test.test_render.makeServiceB")])
+MSStruct = struct.Struct(None, [("__factory__", "coil.test.test_render.makeMultiService")])
 
 
 class RenderTestCase(unittest.TestCase):
@@ -51,8 +51,8 @@ class RenderTestCase(unittest.TestCase):
         c = struct.Struct(MSStruct, [("a", AStruct), ("a2", AStruct)])
         r = render.RenderNode(c)
         self.assertIdentical(r.a, r.a)
-        self.assertEquals(list(r.iterkeys()), ["@factory", "a", "a2"])
-        self.assertEquals(list(r.a.iterkeys()), ["x", "@factory"])
+        self.assertEquals(list(r.iterkeys()), ["__factory__", "a", "a2"])
+        self.assertEquals(list(r.a.iterkeys()), ["x", "__factory__"])
     
     def testNesting(self):
         c = struct.Struct(MSStruct, [("a", AStruct), ("a2", AStruct)])

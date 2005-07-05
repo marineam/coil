@@ -2,8 +2,10 @@
 
 - More tests
 - Better names
+- Change prototypes to be links?!
+- set on substruct defined in current struct should be mutatey?!
 - Text format:
-  - String quoting
+  - make comments into a special attribute type
   - Importing
   - Multi-line strings, maybe
 - Serialization of Python objects to text format
@@ -12,6 +14,7 @@
 
 == Long Term ==
 
+- importing of directories
 - Interfaces indicating schema information (@provides on structs),
   which can be adapted to factories when @factory is missing
   - Ability to check for schema conformance
@@ -19,6 +22,6 @@
 - Configuration mutation?
 - Operators:
     foo: {
-        @extends: =@CONTAINER.bar
-        value: =@CONTAINER.bar.value + 2
+        @extends: =..bar
+        value: =..bar.value + 2
     }
