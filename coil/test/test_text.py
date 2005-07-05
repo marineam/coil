@@ -1,5 +1,6 @@
 """Test text format."""
 
+import os
 from twisted.trial import unittest
 from twisted.python.util import sibpath
 from coil import text, struct, render
@@ -166,10 +167,12 @@ foo: {
         self.assertEquals(root.get("y").get("a"), 2)
     
     def testPathImport(self):
-        path = sibpath(__file__, "example.coil")
+        path = os.path.abspath(sibpath(__file__, "example.coil"))
         s = 'x: {@file: "%s"}' % path
         self._testFile(text.fromString(s).get("x"))
-
+        s = 'x: {@file: "example.coil"}'
+        self._testFile(text.fromString(s, __file__).get("x"))
+    
     def testPackageImport(self):
         s = 'x: {@package: "coil:test/example.coil"}'
         self._testFile(text.fromString(s).get("x"))

@@ -123,11 +123,9 @@ class SymbolicExpressionReceiver(basic.LineReceiver):
     def _setExtendsFromPath(self, path):
         self._checkForExtends()
         try:
-            f = open(path, "r")
-            self.structStack[-1].extends = fromSequence(f, path)
+            self.structStack[-1].extends = fromFile(path)
         except (OSError, IOError):
             self.parseError("Error reading file")
-        f.close()
         
     def special_package(self, value):
         if not isinstance(value, unicode):
@@ -152,6 +150,10 @@ class SymbolicExpressionReceiver(basic.LineReceiver):
     def special_file(self, value):
         if not isinstance(value, unicode):
             self.parseError("@file must get string as value")
+        if not os.path.isabs(value):
+            if self.filePath is None:
+                self.parseError("@file can only load relative paths if source path ('filePath' arguemtn) is known")
+            value = os.path.abspath(os.path.join(os.path.dirname(self.filePath), value))
         self._setExtendsFromPath(value)
     
     def _valueReceived(self, xp):
@@ -301,7 +303,12 @@ class SymbolicExpressionReceiver(basic.LineReceiver):
         self.result = self.structStack.pop().create()
 
 
-def fromSequence(iterOfStrings, filePath="<?>"):
+def fromSequence(iterOfStrings, filePath=None):
+    """Load a Struct from a sequence of strings.
+
+    @param filePath: path the strings were loaded from. Required for
+    relative @file arguments to work.
+    """
     f = SymbolicExpressionReceiver(filePath)
     for s in iterOfStrings:
         f.dataReceived(s)
@@ -309,5 +316,21 @@ def fromSequence(iterOfStrings, filePath="<?>"):
     f.connectionLost(None)
     return f.result
 
-def fromString(st):    
-    return fromSequence([st])
+def fromString(st, filePath=None):
+    """Load a Struct from a string.
+
+    @param filePath: path the string was loaded from. Required for
+    relative @file arguments to work.
+    """
+    return fromSequence([st], filePath)
+
+def fromFile(path):
+    """Load a struct from a file, given a path on the filesystem."""
+    f = file(path, "r")
+    try:
+        return fromSequence(f, path)
+    finally:
+        f.close()
+
+
+__all__ = ["fromString", "fromSequence", "fromFile", "ParseError"]
