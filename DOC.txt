@@ -130,3 +130,49 @@ We can then inspect it with the following Python code:
         2
     >>> rootNode.sub.y.b  # added in sub
         3
+
+
+== Rendering structs to Python objects ==
+
+The other way we can use coil is to render the configuration tree to a
+tree of Python objects, or at the very least calls into Python. We do
+this by adding a "__factory__" attribute, giving a complete Python
+import path to callable which will get called with a
+"coil.render.RenderNode" object. This is similar to a StructNode,
+except that attributes that are renderable into Python will also be
+RenderNode objects that have a rendered() method returning the
+rendered object.
+
+
+    >>> from coil import text, render
+    >>> class Item:
+    ...     def __init__(self, x): self.x = x
+    ...
+    >>> class Container:
+    ...     def __init__(self): self.items = []
+    ...
+    >>> def makeItem(s): return Item(s.x)
+    ...
+    >>> def makeContainer(s):
+    ...     c = Container()
+    ...     for key in s.iterkeys():
+    ...         if key != "__factory__": c.items.append(s.get(key).rendered())
+    ...     return c
+    ...
+    >>> s = """
+    ... item: {__factory__: "__main__.makeItem"  x: 0}
+    ... container: {__factory__: "__main__.makeContainer"}
+    ... example: {@extends: ..container
+    ...           item1: {@extends: @root.item}
+    ...           item2: {@extends: @root.item  x: 2}
+    ...          }
+    ... """
+    >>> st = text.fromString(s)
+    >>> r = render.renderStruct(st).example.rendered()
+    >>> r.items
+    [<__main__.Item instance at 0xb78a034c>,
+     <__main__.Item instance at 0xb78a0a4c>]
+    >>> r.items[0].x
+        0
+    >>> r.items[1].x
+        2

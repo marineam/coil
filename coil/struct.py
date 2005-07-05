@@ -140,7 +140,7 @@ class StructNode:
 
     def iterkeys(self):
         return self._struct.attributes()
-
+    
     def iteritems(self):
         for i in self.iterkeys():
             yield (i, self.get(i))
