@@ -66,6 +66,9 @@ struct: {
             "@x: 2",
             "x: 12c",
             "x: 12.c3",
+            "a: 1 x: .a",
+            "x: @root",
+            "x: ..a",
             ]:
             self.assertRaises(text.ParseError, text.fromString, s)
 
@@ -114,10 +117,10 @@ bar: {
 }
 
 foo: {
-   @extends: =..bar
+   @extends: ..bar
    a: 3
    c: {
-       @extends: =@root.bar.c
+       @extends: @root.bar.c
        b2: =...bar.b
        e: 4
    }
@@ -139,4 +142,18 @@ foo: {
         self.assert_(isinstance(svc, test_render.ServiceA))
         self.assertEquals(svc.x, 2)
         
-                                            
+    def testStupidExtensionSemantics(self):
+        s = '''
+            base: {x: 1}
+            sub: {
+              @extends: ..base
+            }
+            base.y: 2 # sub should NOT have y
+            '''
+        s = text.fromString(s)
+        self.assertEquals(s.get("base").get("y"), 2)
+        self.assertEquals(s.get("sub").get("x"), 1)
+        self.assertRaises(struct.StructAttributeError, lambda: s.get("sub").get("y"))        
+
+  
+

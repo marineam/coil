@@ -2,8 +2,6 @@
 
 - More tests
 - Better names
-- Change prototypes to be links?!
-- set on substruct defined in current struct should be mutatey?!
 - Text format:
   - make comments into a special attribute type
   - Importing

@@ -36,6 +36,7 @@ DELETEDATTR = re.compile("~" + atomRegex)
 pathRegex = r"[@a-zA-Z_]([@a-zA-Z0-9_.])*"
 ATTRIBUTE = re.compile(pathRegex + ":")
 LINK = re.compile("=([.])*" + pathRegex)
+REFERENCE = re.compile("(([.]+)|(@root))"  +  r"([@a-zA-Z0-9_.])*")
 STRING = re.compile(r'"([^\\"]|\\.)*"')
 NUMBER = re.compile(r'-?[0-9]+(\.[0-9]*)?')
 whitespaceRegex = '[ \n\r\t]+'
@@ -146,6 +147,15 @@ class SymbolicExpressionReceiver(basic.LineReceiver):
     
     def _linkReceived(self, linkStr):    
         self._valueReceived(self._parseLink(linkStr))
+
+    def _referenceReceived(self, symbol):
+        if self.attributeStack and self.attributeStack[-1] == "@extends" and not self.listStack:
+            self._valueReceived(self._parseLink(symbol))
+        else:
+            self.parseError("References can only be used after @extends")
+    
+    def _atomReceived(self, symbol):
+        self._tokenReceived(self._makeAtom(symbol))
     
     def _makeAtom(self, st):
         if st == "None":
@@ -226,7 +236,13 @@ class SymbolicExpressionReceiver(basic.LineReceiver):
             if m:
                 end = m.end()
                 symbol, line = line[:end], line[end:]
-                self._tokenReceived(self._makeAtom(symbol))
+                self._atomReceived(symbol)
+                continue
+            m = REFERENCE.match(line)
+            if m:
+                end = m.end()
+                symbol, line = line[:end], line[end:]
+                self._referenceReceived(symbol)
                 continue
             else:
                 self.parseError("invalid syntax")
