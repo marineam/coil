@@ -1,6 +1,7 @@
 """Test text format."""
 
 from twisted.trial import unittest
+from twisted.python.util import sibpath
 from coil import text, struct, render
 
 
@@ -69,6 +70,11 @@ struct: {
             "a: 1 x: .a",
             "x: @root",
             "x: ..a",
+            'x: {@package: "coil.test:nosuchfile"}',
+            'x: {@file: "%s"}' % (sibpath(__file__, "nosuchfile"),),
+            'x: {@package: "coil.test:test_text.py"}', # should get internal parse error
+            'x: {@package: "coil.test:example.coil" @package: "coil.test:example.coil"}',
+            'y: {} x: {@package: "coil.test:example.coil" @extends: ..y}',
             ]:
             self.assertRaises(text.ParseError, text.fromString, s)
 
@@ -155,5 +161,19 @@ foo: {
         self.assertEquals(s.get("sub").get("x"), 1)
         self.assertRaises(struct.StructAttributeError, lambda: s.get("sub").get("y"))        
 
-  
+    def _testFile(self, root):
+        self.assertEquals(root.get("x"), 1)
+        self.assertEquals(root.get("y").get("a"), 2)
+    
+    def testPathImport(self):
+        path = sibpath(__file__, "example.coil")
+        s = 'x: {@file: "%s"}' % path
+        self._testFile(text.fromString(s).get("x"))
 
+    def testPackageImport(self):
+        s = 'x: {@package: "coil:test/example.coil"}'
+        self._testFile(text.fromString(s).get("x"))
+        s = 'x: {@package: "coil.test:example.coil"}'
+        self._testFile(text.fromString(s).get("x"))
+
+        

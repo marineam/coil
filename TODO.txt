@@ -4,7 +4,6 @@
 - Better names
 - Text format:
   - make comments into a special attribute type
-  - Importing
   - Multi-line strings, maybe
 - Serialization of Python objects to text format
 - Ability to compare structs

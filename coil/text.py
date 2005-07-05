@@ -1,6 +1,6 @@
 """Text format for configurations."""
 
-import re, copy
+import re, copy, sys, os
 
 from twisted.protocols import basic
 
@@ -23,7 +23,8 @@ def pythonString(st):
     
 
 class ParseError(Exception):
-    def __init__(self, line, column, reason):
+    def __init__(self, filePath, line, column, reason):
+        self.filePath = filePath
         self.line = line
         self.column = column
         self.reason = reason
@@ -61,7 +62,8 @@ class SymbolicExpressionReceiver(basic.LineReceiver):
     # I don't ever want to buffer more than 64k of data before bailing.
     maxUnparsedBufferSize = 32 * 1024 
 
-    def __init__(self):
+    def __init__(self, filePath):
+        self.filePath = filePath
         self.structStack = [PreStruct()]
         self.attributeStack = []
         self.listStack = []
@@ -69,7 +71,7 @@ class SymbolicExpressionReceiver(basic.LineReceiver):
         self.column = 0
     
     def parseError(self, reason):
-        raise ParseError(self.line, self.column, reason)
+        raise ParseError(self.filePath, self.line, self.column, reason)
 
     def openParen(self):
         newCurrentSexp = []
@@ -99,31 +101,75 @@ class SymbolicExpressionReceiver(basic.LineReceiver):
         else:
             self._valueReceived(tok)
 
+    # special attribute/value pairs:
+    def _checkForExtends(self):
+        if self.structStack[-1].extends != None:
+            self.parseError("Only one of @extends/@package/@file can be set per struct")
+
+    def special_extends(self, value):
+        if not isinstance(value, struct.Link):
+            self.parseError("@extends must have a link as a value")
+        self._checkForExtends()
+        # XXX kitten killin' time
+        myCopy = copy.deepcopy(self)
+        for a in self.attributeStack:
+            myCopy.closeStruct()
+        node = struct.StructNode(myCopy.structStack[0].create())
+        for a in self.attributeStack:
+            node = node.get(a)
+        extends = node._followLink(value)
+        self.structStack[-1].extends = extends._struct
+
+    def _setExtendsFromPath(self, path):
+        self._checkForExtends()
+        try:
+            f = open(path, "r")
+            self.structStack[-1].extends = fromSequence(f, path)
+        except (OSError, IOError):
+            self.parseError("Error reading file")
+        f.close()
+        
+    def special_package(self, value):
+        if not isinstance(value, unicode):
+            self.parseError("@package must get string as value")
+        try:
+            package, path = value.split(":", 1)
+        except ValueError:
+            self.parseError('@package value must be "package:path"')
+        parts = package.split(".")
+        parts.append("__init__.py")
+        fullpath = None
+        for directory in sys.path:
+            if not isinstance(directory, (str, unicode)):
+                continue
+            if os.path.exists(os.path.join(directory, *parts)):
+                fullpath = os.path.join(directory, *(parts[:-1] + [path]))
+                break
+        if not fullpath:
+            self.parseError("Couldn't find package")
+        self._setExtendsFromPath(fullpath)
+
+    def special_file(self, value):
+        if not isinstance(value, unicode):
+            self.parseError("@file must get string as value")
+        self._setExtendsFromPath(value)
+    
     def _valueReceived(self, xp):
         if not self.attributeStack:
             self.parseError("value with no attribute name")
         attribute = self.attributeStack.pop()
-        if attribute == "@extends":
-            if not isinstance(xp, struct.Link):
-                self.parseError("@extends must have a link as a value")
-            if self.structStack[-1].extends != None:
-                self.parseError("@extends can only be used once per struct")
-            # XXX kitten killin' time
-            myCopy = copy.deepcopy(self)
-            for a in self.attributeStack:
-                myCopy.closeStruct()
-            node = struct.StructNode(myCopy.structStack[0].create())
-            for a in self.attributeStack:
-                node = node.get(a)
-            extends = node._followLink(xp)
-            self.structStack[-1].extends = extends._struct
+        if attribute.startswith("@"):
+            handler = getattr(self, "special_%s" % (attribute[1:],), None)
+            if not handler:
+                self.parseError("Unknown special form %s" % attribute)
+            handler(xp)
         else:
             self.structStack[-1].attributes.append((attribute, xp))
 
     def _attributeReceived(self, attribute):
         if len(self.attributeStack) != len(self.structStack) - 1:
             self.parseError("two attributes in a row without value")
-        if "@" in attribute and attribute != "@extends":
+        if "@" in attribute and not hasattr(self, "special_%s" % (attribute[1:],)):
             self.parseError("'@' cannot be used in standard attribute names.")
         self.attributeStack.append(attribute)
 
@@ -255,8 +301,8 @@ class SymbolicExpressionReceiver(basic.LineReceiver):
         self.result = self.structStack.pop().create()
 
 
-def fromSequence(iterOfStrings):
-    f = SymbolicExpressionReceiver()
+def fromSequence(iterOfStrings, filePath="<?>"):
+    f = SymbolicExpressionReceiver(filePath)
     for s in iterOfStrings:
         f.dataReceived(s)
     f.dataReceived("\n")
