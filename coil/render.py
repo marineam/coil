@@ -5,7 +5,6 @@ path to a callable that will be called with the Struct and return the
 rendered object.
 """
 
-import sets
 from twisted.python import reflect
 
 from coil import struct
@@ -30,10 +29,10 @@ class RenderNode(struct.StructNode):
         return self._rendered
 
     def containers(self):
-        s = sets.Set()
+        s = {}
         n = self._container
         while n is not None:
-            s.add(n)
+            s[n] = True
             n = n._container
         return s
     

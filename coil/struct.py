@@ -3,9 +3,8 @@
 Structs can extend other structs (i.e. use another as a prototype).
 """
 
+from __future__ import generators
 __metaclass__ = type
-
-import sets
 
 class _Constant:
 
@@ -51,7 +50,7 @@ class Struct:
         """
         assert prototype is None or isinstance(prototype, Struct)
         self.prototype = prototype
-        self._deletedAttrs = sets.Set()
+        self._deletedAttrs = {}
         self._attrsOrder = []
         self._attrsDict = {}
         for key, value in attrs:
@@ -63,7 +62,7 @@ class Struct:
         key = path.pop(0)
         assert key
         if not path:
-            self._deletedAttrs.add(key)
+            self._deletedAttrs[key] = True
         else:
             # XXX use contructor, maybe?, plus this is inefficient as hell
             self._attrsDict[key] = Struct(self.get(key))

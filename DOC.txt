@@ -81,7 +81,7 @@ syntax is like the paths used for @extends, except that they have a
 server1.host in this example:
 
   address: {host: =..host  port: 1234}
-  server1 {
+  server1: {
      address: {@extends: @root.address}
      host: "www.example.com"
   }
