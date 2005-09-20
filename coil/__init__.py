@@ -1,3 +1,3 @@
 """Coil: A Configuration Library."""
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"

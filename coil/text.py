@@ -2,8 +2,6 @@
 
 import re, copy, sys, os
 
-from twisted.protocols import basic
-
 from coil import struct
 
 
@@ -28,23 +26,23 @@ class ParseError(Exception):
         self.line = line
         self.column = column
         self.reason = reason
-        Exception.__init__(self, "%s (line %d, column %d)" % (reason, line, column))
+        Exception.__init__(self, "%s (%s:%d:%d)" % (reason, filePath, line, column))
 
 
-atomRegex = r'[a-zA-Z]([a-zA-Z0-9_.])*'
+atomRegex = r'[a-zA-Z]([a-zA-Z0-9_.-])*'
 ATOM = re.compile(atomRegex)
 DELETEDATTR = re.compile("~" + atomRegex)
-pathRegex = r"[@a-zA-Z_]([@a-zA-Z0-9_.])*"
+pathRegex = r"[@a-zA-Z_]([@a-zA-Z0-9_.-])*"
 ATTRIBUTE = re.compile(pathRegex + ":")
 LINK = re.compile("=([.])*" + pathRegex)
-REFERENCE = re.compile("(([.]+)|(@root))"  +  r"([@a-zA-Z0-9_.])*")
+REFERENCE = re.compile("(([.]+)|(@root))"  +  r"([@a-zA-Z0-9_.-])*")
 STRING = re.compile(r'"([^\\"]|\\.)*"')
 NUMBER = re.compile(r'-?[0-9]+(\.[0-9]*)?')
 whitespaceRegex = '[ \n\r\t]+'
 WHITESPACE = re.compile(whitespaceRegex)
 
 
-class PreStruct:
+class PreStruct(object):
 
     def __init__(self):
         self.extends = None
@@ -55,13 +53,11 @@ class PreStruct:
         return struct.Struct(self.extends, self.attributes, self.deletedAttributes)
 
 
-class SymbolicExpressionReceiver(basic.LineReceiver):
-
-    delimiter = "\n"
+class SymbolicExpressionReceiver(object):
 
     # I don't ever want to buffer more than 64k of data before bailing.
     maxUnparsedBufferSize = 32 * 1024 
-
+    
     def __init__(self, filePath):
         self.filePath = filePath
         self.structStack = [PreStruct()]
@@ -69,7 +65,8 @@ class SymbolicExpressionReceiver(basic.LineReceiver):
         self.listStack = []
         self.line = 0
         self.column = 0
-    
+        self._buffer = ""
+        
     def parseError(self, reason):
         raise ParseError(self.filePath, self.line, self.column, reason)
 
@@ -85,6 +82,8 @@ class SymbolicExpressionReceiver(basic.LineReceiver):
             self._valueReceived(aList)
 
     def openStruct(self):
+        if self.listStack:
+            self.parseError("Can't have struct inside a list.")
         self.structStack.append(PreStruct())
 
     def closeStruct(self):
@@ -214,6 +213,14 @@ class SymbolicExpressionReceiver(basic.LineReceiver):
             return True
         else:
             self.parseError("invalid value %r" % (st,))
+
+    def dataReceived(self, chunk):
+        lines = chunk.split("\n")
+        if self._buffer:
+            lines[0] = self._buffer + lines[0]
+        self._buffer = lines[-1]
+        for line in lines[:-1]:
+            self.lineReceived(line)
 
     def lineReceived(self, line):
         self.line += 1

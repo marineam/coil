@@ -49,3 +49,18 @@ class StructTestCase(unittest.TestCase):
         n = struct.StructNode(pair)
         self.assertEquals(n.a1.value, 2)
         self.assertEquals(n.a2.value, 0)
+
+
+class NodeTestCase(unittest.TestCase):
+
+    def testNodeMethods(self):
+        s = struct.Struct(None, [("value", 0)])
+        n = struct.StructNode(s)
+        for o in (s, n):
+            self.assertEquals(list(o.attributes()), ["value"])
+            self.assertEquals(o.get("value"), 0)
+            self.assertRaises(struct.StructAttributeError, o.get, "foo")
+            self.assertEquals(o.get("foo", 2), 2)
+            self.assertEquals(o.get("foo", None), None)
+            self.assertEquals(o.has_key("value"), True)
+            self.assertEquals(o.has_key("foo"), False)

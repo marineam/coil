@@ -1,7 +1,5 @@
 == Short term ==
 
-- Allow hyphens in struct keys
-- Disallow structs in lists
 - Debugging tools
 - More tests
 - Better names

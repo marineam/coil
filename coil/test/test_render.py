@@ -51,8 +51,8 @@ class RenderTestCase(unittest.TestCase):
         c = struct.Struct(MSStruct, [("a", AStruct), ("a2", AStruct)])
         r = render.RenderNode(c)
         self.assertIdentical(r.a, r.a)
-        self.assertEquals(list(r.iterkeys()), ["__factory__", "a", "a2"])
-        self.assertEquals(list(r.a.iterkeys()), ["x", "__factory__"])
+        self.assertEquals(list(r.attributes()), ["__factory__", "a", "a2"])
+        self.assertEquals(list(r.a.attributes()), ["x", "__factory__"])
     
     def testNesting(self):
         c = struct.Struct(MSStruct, [("a", AStruct), ("a2", AStruct)])

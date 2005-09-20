@@ -5,12 +5,26 @@ path to a callable that will be called with the Struct and return the
 rendered object.
 """
 
-from twisted.python import reflect
-
 from coil import struct
 
 
+def namedModule(name):
+    """Return a module given its name."""
+    topLevel = __import__(name)
+    packages = name.split(".")[1:]
+    m = topLevel
+    for p in packages:
+        m = getattr(m, p)
+    return m
+
+def namedObject(name):
+    """Import and return Python path."""
+    classSplit = name.split(".")
+    module = namedModule(".".join(classSplit[:-1]))
+    return getattr(module, classSplit[-1])
+    
 NotRendered = object()
+
 
 class RenderNode(struct.StructNode):
     """Caches rendered results."""
@@ -69,6 +83,9 @@ def renderStruct(rootStruct):
             except struct.StructAttributeError:
                 factory = lambda x: x
             else:
-                factory = reflect.namedObject(factory)
+                factory = namedObject(factory)
             node._rendered = factory(node)
     return root.rendered()
+
+
+__all__ = ["renderStruct", "RenderNode"]

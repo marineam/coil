@@ -35,6 +35,8 @@ class StructAttributeError(AttributeError):
     pass
 
 
+_raise = object()
+
 class Struct:
     """A configuration structure."""
 
@@ -85,7 +87,7 @@ class Struct:
             self._attrsDict[key] = Struct(self.get(key))
             self._attrsDict[key]._add(path, value)
 
-    def get(self, attr):
+    def get(self, attr, default=_raise):
         """Get an attribute, checking prototypes as necessary."""
         if attr in self._deletedAttrs:
             raise StructAttributeError, attr
@@ -94,8 +96,21 @@ class Struct:
         elif self.prototype is not None:
             return self.prototype.get(attr)
         else:
-            raise StructAttributeError, attr
+            if default is _raise:
+                raise StructAttributeError, attr
+            else:
+                return default
 
+    def has_key(self, attr):
+        """Return if struct has this attribute."""
+        if attr in self._deletedAttrs:
+            return False
+        if attr in self._attrsDict:
+            return True
+        if self.prototype is not None:
+            return self.prototype.has_key(attr)
+        return False
+    
     def attributes(self):
         """Return list of all attributes."""
         if self.prototype is not None:
@@ -129,21 +144,24 @@ class StructNode:
         self._struct = struct
         self._container = container
 
-    def get(self, attr):
-        val = self._struct.get(attr)
+    def has_key(self, attr):
+        return self._struct.has_key(attr)
+    
+    def get(self, attr, default=_raise):
+        val = self._struct.get(attr, default)
         if isinstance(val, Struct):
             val = self._wrap(attr, val)
         elif isinstance(val, Link):
             val = self._followLink(val)
         return val
 
-    def iterkeys(self):
+    def attributes(self):
         return self._struct.attributes()
-    
+
     def iteritems(self):
-        for i in self.iterkeys():
+        for i in self.attributes():
             yield (i, self.get(i))
-    
+
     def _followLink(self, link):
         node = self
         for p in link.path:
@@ -162,3 +180,6 @@ class StructNode:
     
     def __getattr__(self, attr):
         return self.get(attr)
+
+
+__all__ = ["Struct", "StructNode", "Link", "StructAttributeError"]

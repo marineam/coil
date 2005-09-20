@@ -35,9 +35,12 @@ struct: {
         a: "hello world"
         b: False
     }
-}'''
+}
+a-number: 2
+'''
         root = text.fromString(s)
-        self.assertEquals(list(root.attributes()), ["struct"])
+        self.assertEquals(list(root.attributes()), ["struct", "a-number"])
+        self.assertEquals(root.get("a-number"), 2)
         struct = root.get("struct")
         self.assertEquals(list(struct.attributes()), ["x", "y", "substruct"])
         self.assertEquals(struct.get("x"), 12)
@@ -48,14 +51,16 @@ struct: {
     def testAttributePath(self):
         s = '''
 struct: {
-    sub: {a: 1 c: 2}
+    sub: {a: 1 c: 2 d-e: 4}
     sub.b: 2
     sub.c: 3
+    sub.d-e: 5
 }'''
         root = text.fromString(s).get("struct")
         self.assertEquals(root.get("sub").get("a"), 1)
         self.assertEquals(root.get("sub").get("b"), 2)
         self.assertEquals(root.get("sub").get("c"), 3)
+        self.assertEquals(root.get("sub").get("d-e"), 5)
     
     def testBad(self):
         for s in [
@@ -76,6 +81,7 @@ struct: {
             'x: {@package: "coil.test:test_text.py"}', # should get internal parse error
             'x: {@package: "coil.test:example.coil" @package: "coil.test:example.coil"}',
             'y: {} x: {@package: "coil.test:example.coil" @extends: ..y}',
+            'z: [{x: 2}]', # can't have struct in list
             ]:
             self.assertRaises(text.ParseError, text.fromString, s)
 
@@ -100,7 +106,9 @@ struct: {
         root = text.fromString(s).get("struct")
         self.assertEquals(list(root.attributes()), ["a"])
         self.assertEquals(list(root.get("a").attributes()), ["x"])
-
+        self.assert_(not root.has_key("d"))
+        self.assert_(not root.has_key("c"))
+    
     def testLink(self):
         s = '''
 struct: {
@@ -141,7 +149,11 @@ foo: {
         self.assertEquals(foo.c.b2, 2)
         self.assertEquals(foo.c.e, 4)
         self.assertEquals(foo.c.f, 9)
-
+        for n in ("a", "b", "c"):
+            self.assert_(foo.has_key(n))
+        for n in ("d", "b2", "e", "f"):
+            self.assert_(foo.c.has_key(n))
+    
     def testRender(self):
         s = 'service: {__factory__: "coil.test.test_render.makeServiceA" x: 2}'
         svc = render.renderStruct(text.fromString(s).get("service"))
@@ -161,7 +173,8 @@ foo: {
         self.assertEquals(s.get("base").get("y"), 2)
         self.assertEquals(s.get("sub").get("x"), 1)
         self.assertRaises(struct.StructAttributeError, lambda: s.get("sub").get("y"))        
-
+        self.assert_(not s.get("sub").has_key("y"))
+    
     def _testFile(self, root):
         self.assertEquals(root.get("x"), 1)
         self.assertEquals(root.get("y").get("a"), 2)
