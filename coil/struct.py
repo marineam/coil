@@ -11,12 +11,15 @@ class _Constant:
     def __init__(self, s):
         self.s = s
 
-    def __repr__(self):
+    def __unicode__(self):
         return self.s
+    
+    def __repr__(self):
+        return self.s.encode("ascii")
 
 
-CONTAINER = _Constant("CONTAINER")
-ROOT = _Constant("ROOT")
+CONTAINER = _Constant(u".")
+ROOT = _Constant(u"@root")
 
 class Link:
     """A lazy link to a configuration atom.
@@ -28,7 +31,7 @@ class Link:
         self.path = path
 
     def __repr__(self):
-        return "--> %s" % (":".join([repr(i) for i in self.path]),)
+        return "=" + u".".join([unicode(i) for i in self.path]).encode("ascii")
 
 
 class StructAttributeError(AttributeError):
@@ -120,6 +123,14 @@ class Struct:
         for i in self._attrsOrder:
             if i not in self._deletedAttrs:
                 yield i
+
+    def _quote(self, o):
+        if isinstance(o, unicode):
+            return u'"' + o + u'"'
+        elif isinstance(o, list):
+            return u"[" + u" ".join([self._quote(i) for i in o]) + u"]"
+        else:
+            return unicode(o)
     
     def _strBody(self, indent):
         l = []
@@ -127,14 +138,16 @@ class Struct:
             prefix = "%s%s: " % (indent * " ", key)
             val = self.get(key)
             if isinstance(val, Struct):
-                val = "\n" + val._strBody(len(prefix))
+                l.extend([prefix, "{\n", val._strBody(indent + 4),  (" " * indent), "}\n"])
             else:
-                val = repr(val)
-            l.extend([prefix, val, "\n"])
-        return "".join(l)
+                l.extend([prefix, self._quote(val), "\n"])
+        return u"".join(l).encode("utf-8")
     
     def __str__(self):
         return "<Struct %x:\n%s>" % (id(self), self._strBody(2))
+    
+    def __repr__(self):
+        return self._strBody(0)
 
 
 class StructNode:

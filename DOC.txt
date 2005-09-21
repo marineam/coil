@@ -66,23 +66,23 @@ Structs can also be used to import files, either given a path on the
 filesystem, which can be absolute or relative to the current coil
 file:
 
-  x: {@file: "/home/joe/test/example.coil" }
+  example: {@file: "/home/joe/test/example.coil"}
 
 or give a path which is relative to the path of Python package which
 is present in sys.path, for example the file "example.coil" which is
 present in the coil.test package:
 
-  x: {@package: "coil.test:example.coil"}
+  example: {@package: "ops.avs:./example.coil"}
 
 Links can be used to have attributes whose value is determined based
 on their context, i.e. at lookup time rather then at parse time. Their
 syntax is like the paths used for @extends, except that they have a
-"=" prefixed. For example, server1.address.host will be the same as
+"=" prefixed. For example, server1.myaddress.host will be the same as
 server1.host in this example:
 
   address: {host: =..host  port: 1234}
   server1: {
-     address: {@extends: @root.address}
+     myaddress: {@extends: @root.address}
      host: "www.example.com"
   }
 
