@@ -10,9 +10,11 @@ class TextTestCase(unittest.TestCase):
 
     def testStringParse(self):
         for structStr, value in (
-            [r'x: "\n\r\t\""', u'\n\r\t\"'],
+            [r'x: "\n\r \t\""', u'\n\r \t\"'],
             [r'x: "hello"', u"hello"],
+            [r'x: "\\n"', ur"\n"],
             ['x: "' + u"\u3456".encode("utf-8") + '"', u'\u3456'],
+            [r'x: "\" \ x"', u'" \ x'],
             ):
             x = text.fromString(structStr).get("x")
             self.assertEquals(x, value)
@@ -82,6 +84,7 @@ struct: {
             'x: {@package: "coil.test:example.coil" @package: "coil.test:example.coil"}',
             'y: {} x: {@package: "coil.test:example.coil" @extends: ..y}',
             'z: [{x: 2}]', # can't have struct in list
+            r'z: "lalalal \"', # string is not closed
             ]:
             self.assertRaises(text.ParseError, text.fromString, s)
 
@@ -192,4 +195,19 @@ foo: {
         s = 'x: {@package: "coil.test:example.coil"}'
         self._testFile(text.fromString(s).get("x"))
 
-        
+    def testFileImport(self):
+        path = sibpath(__file__, "example2.coil")
+        s = text.fromFile(path)
+        node = struct.StructNode(s)
+        # make sure relative and absolute paths work and are relative
+        # to sub-struct that did the @file.
+        self.assertEquals(node.sub.y.x, u"foo")
+        self.assertEquals(node.sub.y.a2, u"bar")
+
+    def testFileImportAtTopLevel(self):
+        path = sibpath(__file__, "example3.coil")
+        s = text.fromFile(path)
+        node = struct.StructNode(s)
+        self.assertEquals(node.y.a, 2)
+        self.assertEquals(node.y.b, 3)
+        self.assertEquals(node.x, 1)

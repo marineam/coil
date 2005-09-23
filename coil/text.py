@@ -4,19 +4,29 @@ import re, copy, sys, os
 
 from coil import struct
 
+_unquote = {u'\\': u'\\',
+            u'n': u'\n',
+            u'r': u'\r',
+            u't': u'\t',
+            u'"': u'"',
+            }
 
 def pythonString(st):
     assert st[0] == '"' and st[-1] == '"'
     # strip off the quotes
     st = st[1:-1].decode("utf-8")
-    for quoted, value in [
-        ('\\\\', '\\'), # backslashes
-        ('\\"', '"'), # quotes
-        ('\\n', '\n'),
-        ('\\r', '\r'),
-        ('\\t', '\t'),
-        ]:
-        st = st.replace(quoted, value)
+    pos = 0
+    while True:
+        bs = st.find(u'\\', pos)
+        if bs == -1 or bs == len(st):
+            break
+        new = _unquote.get(st[bs + 1])
+        if new:
+            first_part = st[:bs]
+            st = first_part + new + st[bs + 2:]
+            pos = len(first_part) + 1
+        else:
+            pos += 1
     return st
     
 
@@ -36,7 +46,7 @@ pathRegex = r"[@a-zA-Z_]([@a-zA-Z0-9_.-])*"
 ATTRIBUTE = re.compile(pathRegex + ":")
 LINK = re.compile("=([.])*" + pathRegex)
 REFERENCE = re.compile("(([.]+)|(@root))"  +  r"([@a-zA-Z0-9_.-])*")
-STRING = re.compile(r'"([^\\"]|\\.)*"')
+STRING = re.compile(r'"(\\.|[^\\])*"')
 NUMBER = re.compile(r'-?[0-9]+(\.[0-9]*)?')
 whitespaceRegex = '[ \n\r\t]+'
 WHITESPACE = re.compile(whitespaceRegex)
@@ -179,8 +189,6 @@ class SymbolicExpressionReceiver(object):
             self.parseError("attribute not followed by value")
         self.structStack[-1].deletedAttributes.append(attribute)
 
-    linkAtoms = {"@root": struct.ROOT,}
-
     def _parseLink(self, linkStr):
         parts = []
         m = re.match("[.]*", linkStr)
@@ -189,7 +197,12 @@ class SymbolicExpressionReceiver(object):
             dots, linkStr = linkStr[:end], linkStr[end:]
             for i in range(len(dots) - 1):
                 parts.append(struct.CONTAINER)
-        parts.extend([self.linkAtoms.get(p, p) for p in linkStr.split(".")])
+        if linkStr:
+            subparts = linkStr.split(".")
+            if subparts[0] == "@root":
+                parts.extend([struct.CONTAINER] * (len(self.structStack) - 1))
+                del subparts[0]
+            parts.extend(subparts)
         return struct.Link(*parts)
     
     def _linkReceived(self, linkStr):    

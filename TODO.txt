@@ -1,9 +1,9 @@
 == Short term ==
 
-- @file on top level of file seems to be buggy
 - add file/lineno to StructAttributeError
 - speed up by removing deepcopying
-- Debugging tools, e.g. tool that dumps loaded text file/verifies well-formedness as a side-effect
+- de-unicoding hook for text format
+- fix unicode bugs (make *everything* unicode)
 - More tests
 - Better names
 - Text format:

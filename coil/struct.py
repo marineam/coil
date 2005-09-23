@@ -11,15 +11,13 @@ class _Constant:
     def __init__(self, s):
         self.s = s
 
-    def __unicode__(self):
-        return self.s
+    def __deepcopy__(self, d):
+        return self
     
-    def __repr__(self):
-        return self.s.encode("ascii")
+    def __str__(self, other):
+        return "<%s>" % self.s
 
-
-CONTAINER = _Constant(u".")
-ROOT = _Constant(u"@root")
+CONTAINER = _Constant("CONTAINER")
 
 class Link:
     """A lazy link to a configuration atom.
@@ -30,8 +28,17 @@ class Link:
     def __init__(self, *path):
         self.path = path
 
+    def __unicode__(self):
+        return repr(self).decode("ascii")
+
     def __repr__(self):
-        return "=" + u".".join([unicode(i) for i in self.path]).encode("ascii")
+        result = ["="]
+        for p in self.path:
+            if p is CONTAINER:
+                result.append(".")
+            else:
+                result.append("." + p)
+        return "".join(result)
 
 
 class StructAttributeError(AttributeError):
@@ -63,6 +70,17 @@ class Struct:
         for key in deletedAttrs:
             self._addDelete(key.split("."))
 
+    def copy(self):
+        """Return a self-contained copy."""
+        copy = Struct()
+        for name in self.attributes():
+            copy._attrsOrder.append(name)
+            value = self.get(name)
+            if isinstance(value, Struct):
+                value = value.copy()
+            copy._attrsDict[name] = value
+        return copy
+    
     def _addDelete(self, path):
         key = path.pop(0)
         assert key
@@ -180,9 +198,9 @@ class StructNode:
         for p in link.path:
             if p is CONTAINER:
                 node = node._container
-            elif p is ROOT:
-                while node._container != None:
-                    node = node._container
+#             elif p is ROOT:
+#                 while node._container != None:
+#                     node = node._container
             else:
                 # XXX use get() if is Struct
                 node = getattr(node, p)

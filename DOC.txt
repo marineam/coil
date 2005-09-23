@@ -29,8 +29,9 @@ attributes from that struct. Extending is done with a special
 attribute, @extends, with a value that is a path to another
 struct. Paths can be relative, with a prefix of ".." meaning go up one
 level, "..." go up two levels, etc., or absolute, starting from the
-special location @root. In this example, y and z inherit from x and
-override some of its attributes:
+special location @root. More accurately, @root means "the current
+top-level struct or structs that extend it." In this example, y and z
+inherit from x and override some of its attributes:
 
   x: {a: 1  b: 2}
   y: {
@@ -45,6 +46,15 @@ override some of its attributes:
 In this example y is the same as:
 
   y: {a: 1 b: 3}
+
+If the above example was a file called "foo.coil" and we did:
+
+  sub: {
+         @file: "foo.coil" 
+         x: {c : 2}
+       }
+
+then sub.z  would be '{c: 2 b: 4}'.
 
 For extending substructs there is a shorthand syntax. In this example
 y and z both extend x, and have identical contents:
@@ -122,7 +132,7 @@ We can then inspect it with the following Python code:
         u'hello'
     >>> rootNode.get("x").get("z")
         u'hello'
-    >>> list(rootNode.iterkeys())
+    >>> list(rootNode.attributes())
         ['x', 'sub']
     >>> hasattr(rootNode.sub, "z") # we deleted this with ~z
         False
@@ -155,7 +165,7 @@ rendered object.
     ...
     >>> def makeContainer(s):
     ...     c = Container()
-    ...     for key in s.iterkeys():
+    ...     for key in s.attributes():
     ...         if key != "__factory__": c.items.append(s.get(key).rendered())
     ...     return c
     ...

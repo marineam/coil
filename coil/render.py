@@ -1,4 +1,4 @@
-"""Rendering of Struct objects to Python code.
+"""Rendering of Struct objects using Python code.
 
 The special attribute __factory__ indicates a fully qualified Python
 path to a callable that will be called with the Struct and return the
