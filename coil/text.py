@@ -46,7 +46,7 @@ pathRegex = r"[@a-zA-Z_]([@a-zA-Z0-9_.-])*"
 ATTRIBUTE = re.compile(pathRegex + ":")
 LINK = re.compile("=([.])*" + pathRegex)
 REFERENCE = re.compile("(([.]+)|(@root))"  +  r"([@a-zA-Z0-9_.-])*")
-STRING = re.compile(r'"(\\.|[^\\])*"')
+STRING = re.compile(r'"(\\.|[^\\"])*"')
 NUMBER = re.compile(r'-?[0-9]+(\.[0-9]*)?')
 whitespaceRegex = '[ \n\r\t]+'
 WHITESPACE = re.compile(whitespaceRegex)
@@ -76,7 +76,8 @@ class SymbolicExpressionReceiver(object):
         self.line = 0
         self.column = 0
         self._buffer = ""
-        
+        self.links = [] # list of (depth, link) for all Links created
+    
     def parseError(self, reason):
         raise ParseError(self.filePath, self.line, self.column, reason)
 
@@ -126,7 +127,10 @@ class SymbolicExpressionReceiver(object):
         node = struct.StructNode(myCopy.structStack[0].create())
         for a in self.attributeStack:
             node = node.get(a)
-        extends = node._followLink(value)
+        try:
+            extends = node._followLink(value)
+        except struct.StructAttributeError, e:
+            self.parseError("Error following @extends path %r" % (value,))
         self.structStack[-1].extends = extends._struct
 
     def _setExtendsFromPath(self, path):
@@ -190,6 +194,8 @@ class SymbolicExpressionReceiver(object):
         self.structStack[-1].deletedAttributes.append(attribute)
 
     def _parseLink(self, linkStr):
+        if self.listStack:
+            self.parseError("Can't have link inside a list.")
         parts = []
         m = re.match("[.]*", linkStr)
         if m:
@@ -200,7 +206,7 @@ class SymbolicExpressionReceiver(object):
         if linkStr:
             subparts = linkStr.split(".")
             if subparts[0] == "@root":
-                parts.extend([struct.CONTAINER] * (len(self.structStack) - 1))
+                parts.append(struct.ROOT)
                 del subparts[0]
             parts.extend(subparts)
         return struct.Link(*parts)
@@ -321,6 +327,23 @@ class SymbolicExpressionReceiver(object):
         if len(self.structStack) != 1:
             self.parseError("incomplete tree")
         self.result = self.structStack.pop().create()
+        # traverse tree, relativizing links:
+        _Relativize(self.result)
+
+
+class _Relativize(object):
+
+    def __init__(self, root):
+        self._traverse(root, 0)
+
+    def _traverse(self, st, depth):
+        for name in st.attributes():
+            value = st.get(name)
+            if isinstance(value, struct.Link):
+                value._relativize(depth)
+            elif isinstance(value, struct.Struct):
+                self._traverse(value, depth+1)
+
 
 
 def fromSequence(iterOfStrings, filePath=None):

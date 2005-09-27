@@ -21,9 +21,10 @@ class TextTestCase(unittest.TestCase):
             self.assert_(isinstance(x, unicode))
     
     def testListParse(self):
-        s = 'x: [None 1 2.3 ["hello \\"world"] [7]]'
-        self.assertEquals(text.fromString(s).get("x"),
-                          [None, 1, 2.3, [u'hello "world'], [7]])
+        for s, l in [#('x: [None 1 2.3 ["hello \\"world"] [7]]',
+                     # [None, 1, 2.3, [u'hello "world'], [7]]),
+                     ('x: ["a" "b"]', [u"a", u"b"])]:
+            self.assertEquals(text.fromString(s).get("x"), l)
 
     def testComments(self):
         s = "y: [12 #hello\n]"
@@ -85,6 +86,7 @@ struct: {
             'y: {} x: {@package: "coil.test:example.coil" @extends: ..y}',
             'z: [{x: 2}]', # can't have struct in list
             r'z: "lalalal \"', # string is not closed
+            'a: 1 z: [ =@root.a ]',
             ]:
             self.assertRaises(text.ParseError, text.fromString, s)
 
@@ -211,3 +213,12 @@ foo: {
         self.assertEquals(node.y.a, 2)
         self.assertEquals(node.y.b, 3)
         self.assertEquals(node.x, 1)
+
+    def testRootLinks(self):
+        s = """x: 1
+               y: {x: =@root.x}
+               z: {y2: {@extends: ...y}}"""
+        node = struct.StructNode(text.fromString(s))
+        self.assertEquals(node.x, 1)
+        self.assertEquals(node.y.x, 1)
+        self.assertEquals(node.z.y2.x, 1)

@@ -1,11 +1,11 @@
 == Short term ==
 
-- add file/lineno to StructAttributeError
 - speed up by removing deepcopying
 - de-unicoding hook for text format
 - fix unicode bugs (make *everything* unicode)
 - More tests
 - Better names
+- create formal grammar for coil and make parser use it
 - Text format:
   - make comments into a special attribute type
   - Multi-line strings, maybe

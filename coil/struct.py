@@ -17,6 +17,8 @@ class _Constant:
     def __str__(self, other):
         return "<%s>" % self.s
 
+
+ROOT = _Constant("ROOT")
 CONTAINER = _Constant("CONTAINER")
 
 class Link:
@@ -26,7 +28,14 @@ class Link:
     """
 
     def __init__(self, *path):
-        self.path = path
+        if not path:
+            raise ValueError, "must have at least one segment"
+        self.path = list(path)
+
+    def _relativize(self, depth):
+        """Turn absolute path into relative path."""
+        if self.path[0] == ROOT:
+            self.path[:1] = [CONTAINER] * depth
 
     def __unicode__(self):
         return repr(self).decode("ascii")
@@ -198,9 +207,9 @@ class StructNode:
         for p in link.path:
             if p is CONTAINER:
                 node = node._container
-#             elif p is ROOT:
-#                 while node._container != None:
-#                     node = node._container
+            elif p is ROOT:
+                while node._container != None:
+                    node = node._container
             else:
                 # XXX use get() if is Struct
                 node = getattr(node, p)
