@@ -130,7 +130,7 @@ class SymbolicExpressionReceiver(object):
         try:
             extends = node._followLink(value)
         except struct.StructAttributeError, e:
-            self.parseError("Error following @extends path %r" % (value,))
+            self.parseError("@extends target not found: %r" % (value,))
         self.structStack[-1].extends = extends._struct
 
     def _setExtendsFromPath(self, path):
@@ -209,7 +209,10 @@ class SymbolicExpressionReceiver(object):
                 parts.append(struct.ROOT)
                 del subparts[0]
             parts.extend(subparts)
-        return struct.Link(*parts)
+        try:
+            return struct.Link(*parts)
+        except ValueError:
+            self.parseError("Bad link path: %r" % (linkStr,))
     
     def _linkReceived(self, linkStr):    
         self._valueReceived(self._parseLink(linkStr))

@@ -45,6 +45,8 @@ class Link:
         for p in self.path:
             if p is CONTAINER:
                 result.append(".")
+            elif p is ROOT:
+                result.append("@root")
             else:
                 result.append("." + p)
         return "".join(result)

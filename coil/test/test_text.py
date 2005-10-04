@@ -87,6 +87,10 @@ struct: {
             'z: [{x: 2}]', # can't have struct in list
             r'z: "lalalal \"', # string is not closed
             'a: 1 z: [ =@root.a ]',
+            'a: {@extends: @root.b}', # b doesn't exist
+            'a: {@extends: ..b}', # b doesn't exist
+            'a: {@extends: x}',
+            'a: {@extends: .}',
             ]:
             self.assertRaises(text.ParseError, text.fromString, s)
 
@@ -94,6 +98,7 @@ struct: {
             text.fromString("x: 1\n2\n")
         except text.ParseError, e:
             self.assertEquals(e.line, 2)
+            self.assertEquals(e.column, 0)
         else:
             raise RuntimeError
 
