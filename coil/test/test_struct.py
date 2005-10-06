@@ -56,7 +56,9 @@ class NodeTestCase(unittest.TestCase):
     def testNodeMethods(self):
         s = struct.Struct(None, [("value", 0)])
         n = struct.StructNode(s)
-        for o in (s, n):
+        sub = struct.Struct(s)
+        subn = struct.StructNode(sub)
+        for o in (s, n, sub, subn):
             self.assertEquals(list(o.attributes()), ["value"])
             self.assertEquals(o.get("value"), 0)
             self.assertRaises(struct.StructAttributeError, o.get, "foo")

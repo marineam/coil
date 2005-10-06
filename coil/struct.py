@@ -126,7 +126,7 @@ class Struct:
         if attr in self._attrsDict:
             return self._attrsDict[attr]
         elif self.prototype is not None:
-            return self.prototype.get(attr)
+            return self.prototype.get(attr, default=default)
         else:
             if default is _raise:
                 raise StructAttributeError, attr
