@@ -2,7 +2,6 @@
 
 - StructAttributeErrors should know where they came from
 - speed up by removing deepcopying
-- de-unicoding hook for text format
 - fix unicode bugs (make *everything* unicode)
 - More tests
 - Better names
