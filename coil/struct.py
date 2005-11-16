@@ -13,6 +13,9 @@ class _Constant:
 
     def __deepcopy__(self, d):
         return self
+
+    def __copy__(self, d):
+        return self
     
     def __str__(self, other):
         return "<%s>" % self.s
@@ -32,6 +35,9 @@ class Link:
             raise ValueError, "must have at least one segment"
         self.path = list(path)
 
+    def copy(self):
+        return self.__class__(*self.path)
+    
     def _relativize(self, depth):
         """Turn absolute path into relative path."""
         if self.path[0] == ROOT:
@@ -83,11 +89,11 @@ class Struct:
 
     def copy(self):
         """Return a self-contained copy."""
-        copy = Struct()
+        copy = self.__class__(None)
         for name in self.attributes():
             copy._attrsOrder.append(name)
             value = self.get(name)
-            if isinstance(value, Struct):
+            if isinstance(value, (Struct, Link)):
                 value = value.copy()
             copy._attrsDict[name] = value
         return copy

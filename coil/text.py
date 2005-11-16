@@ -1,6 +1,8 @@
+# -*- test-case-name: coil.test.test_text -*-
+
 """Text format for configurations."""
 
-import re, copy, sys, os
+import re, sys, os
 
 from coil import struct
 
@@ -52,17 +54,6 @@ whitespaceRegex = '[ \n\r\t]+'
 WHITESPACE = re.compile(whitespaceRegex)
 
 
-class PreStruct(object):
-
-    def __init__(self):
-        self.extends = None
-        self.attributes = []
-        self.deletedAttributes = []
-
-    def create(self):
-        return struct.Struct(self.extends, self.attributes, self.deletedAttributes)
-
-
 class SymbolicExpressionReceiver(object):
 
     # I don't ever want to buffer more than 64k of data before bailing.
@@ -70,7 +61,7 @@ class SymbolicExpressionReceiver(object):
     
     def __init__(self, filePath):
         self.filePath = filePath
-        self.structStack = [PreStruct()]
+        self.structStack = [struct.Struct(None)]
         self.attributeStack = []
         self.listStack = []
         self.line = 0
@@ -95,14 +86,25 @@ class SymbolicExpressionReceiver(object):
     def openStruct(self):
         if self.listStack:
             self.parseError("Can't have struct inside a list.")
-        self.structStack.append(PreStruct())
-
+        s = struct.Struct(None)
+        if not self.attributeStack:
+            self.parseError("Can't have struct without attribute.")
+        attribute = self.attributeStack[-1]
+        if attribute.startswith("@"):
+            self.parseError("Can't have struct as value of special attribute.")
+        # structs are special cased; they are added here rather in _valueReceived,
+        # so that copy semantics for @extends can work. This is because @extends
+        # needs access to structs even if they are not fully constructed, and if
+        # they were added only when closed @extends wouldn't necessarily find them.
+        self.structStack[-1]._add(attribute.split("."), s)
+        self.structStack.append(s)
+    
     def closeStruct(self):
         if len(self.structStack) == 1:
             self.parseError("extra or unmatched }")
         pre = self.structStack.pop()
-        self._valueReceived(pre.create())
-
+        self._valueReceived(pre)
+    
     def _tokenReceived(self, tok):        
         if self.listStack:
             self.listStack[-1].append(tok)
@@ -113,30 +115,26 @@ class SymbolicExpressionReceiver(object):
 
     # special attribute/value pairs:
     def _checkForExtends(self):
-        if self.structStack[-1].extends != None:
+        if self.structStack[-1].prototype != None:
             self.parseError("Only one of @extends/@package/@file can be set per struct")
 
     def special_extends(self, value):
         if not isinstance(value, struct.Link):
             self.parseError("@extends must have a link as a value")
         self._checkForExtends()
-        # XXX kitten killin' time
-        myCopy = copy.deepcopy(self)
-        for a in self.attributeStack:
-            myCopy.closeStruct()
-        node = struct.StructNode(myCopy.structStack[0].create())
+        node = struct.StructNode(self.structStack[0])
         for a in self.attributeStack:
             node = node.get(a)
         try:
             extends = node._followLink(value)
         except struct.StructAttributeError, e:
             self.parseError("@extends target not found: %r" % (value,))
-        self.structStack[-1].extends = extends._struct
+        self.structStack[-1].prototype = extends._struct.copy()
 
     def _setExtendsFromPath(self, path):
         self._checkForExtends()
         try:
-            self.structStack[-1].extends = fromFile(path)
+            self.structStack[-1].prototype = fromFile(path)
         except (OSError, IOError):
             self.parseError("Error reading file")
         
@@ -168,7 +166,7 @@ class SymbolicExpressionReceiver(object):
                 self.parseError("@file can only load relative paths if source path ('filePath' arguemtn) is known")
             value = os.path.abspath(os.path.join(os.path.dirname(self.filePath), value))
         self._setExtendsFromPath(value)
-    
+
     def _valueReceived(self, xp):
         if not self.attributeStack:
             self.parseError("value with no attribute name")
@@ -179,7 +177,9 @@ class SymbolicExpressionReceiver(object):
                 self.parseError("Unknown special form %s" % attribute)
             handler(xp)
         else:
-            self.structStack[-1].attributes.append((attribute, xp))
+            if isinstance(xp, struct.Struct):
+                return # already added previously
+            self.structStack[-1]._add(attribute.split("."), xp)
 
     def _attributeReceived(self, attribute):
         if len(self.attributeStack) != len(self.structStack) - 1:
@@ -191,7 +191,7 @@ class SymbolicExpressionReceiver(object):
     def _deleteReceived(self, attribute):
         if len(self.attributeStack) != len(self.structStack) - 1:
             self.parseError("attribute not followed by value")
-        self.structStack[-1].deletedAttributes.append(attribute)
+        self.structStack[-1]._addDelete(attribute.split("."))
 
     def _parseLink(self, linkStr):
         if self.listStack:
@@ -329,7 +329,7 @@ class SymbolicExpressionReceiver(object):
     def connectionLost(self, reason):
         if len(self.structStack) != 1:
             self.parseError("incomplete tree")
-        self.result = self.structStack.pop().create()
+        self.result = self.structStack.pop()
         # traverse tree, relativizing links:
         _Relativize(self.result)
 

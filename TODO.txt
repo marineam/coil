@@ -1,7 +1,6 @@
 == Short term ==
 
 - StructAttributeErrors should know where they came from
-- speed up by removing deepcopying
 - fix unicode bugs (make *everything* unicode)
 - More tests
 - Better names
@@ -11,7 +10,7 @@
   - Multi-line strings, maybe
 - Serialization of Python objects to text format
 - Ability to compare structs
-
+- Write test for Struct.copy()
 
 == Long Term ==
 
