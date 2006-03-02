@@ -79,6 +79,8 @@ class SymbolicExpressionReceiver(object):
         self.listStack.append(newCurrentSexp)
 
     def closeParen(self):
+        if not self.listStack:
+            self.parseError("unmatched closing bracket.")
         aList = self.listStack.pop()
         if not self.listStack:                
             self._valueReceived(aList)

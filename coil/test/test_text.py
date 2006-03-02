@@ -91,6 +91,7 @@ struct: {
             'a: {@extends: ..b}', # b doesn't exist
             'a: {@extends: x}',
             'a: {@extends: .}',
+            'a: [1 2 3]]',
             ]:
             self.assertRaises(text.ParseError, text.fromString, s)
 
