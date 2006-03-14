@@ -44,7 +44,7 @@ class ParseError(Exception):
 atomRegex = r'[a-zA-Z]([a-zA-Z0-9_.-])*'
 ATOM = re.compile(atomRegex)
 DELETEDATTR = re.compile("~" + atomRegex)
-pathRegex = r"[@a-zA-Z_]([@a-zA-Z0-9_.-])*"
+pathRegex = r"[@a-zA-Z_-]([@a-zA-Z0-9_.-])*"
 ATTRIBUTE = re.compile(pathRegex + ":")
 LINK = re.compile("=([.])*" + pathRegex)
 REFERENCE = re.compile("(([.]+)|(@root))"  +  r"([@a-zA-Z0-9_.-])*")

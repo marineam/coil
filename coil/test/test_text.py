@@ -40,10 +40,12 @@ struct: {
     }
 }
 a-number: 2
+-moo: 3
 '''
         root = text.fromString(s)
-        self.assertEquals(list(root.attributes()), ["struct", "a-number"])
+        self.assertEquals(list(root.attributes()), ["struct", "a-number", "-moo"])
         self.assertEquals(root.get("a-number"), 2)
+        self.assertEquals(root.get("-moo"), 3)
         struct = root.get("struct")
         self.assertEquals(list(struct.attributes()), ["x", "y", "substruct"])
         self.assertEquals(struct.get("x"), 12)
