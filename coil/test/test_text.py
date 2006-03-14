@@ -19,7 +19,16 @@ class TextTestCase(unittest.TestCase):
             x = text.fromString(structStr).get("x")
             self.assertEquals(x, value)
             self.assert_(isinstance(x, unicode))
-    
+
+    def testIntParse(self):
+        for structStr, value in [
+            ('x: 1', 1),
+            ('x: 20909', 20909),
+            ('x: -34324', -34324),
+            ('x: 0', 0)]:
+            x = text.fromString(structStr).get("x")
+            self.assertEquals(x, value)
+
     def testListParse(self):
         for s, l in [#('x: [None 1 2.3 ["hello \\"world"] [7]]',
                      # [None, 1, 2.3, [u'hello "world'], [7]]),
