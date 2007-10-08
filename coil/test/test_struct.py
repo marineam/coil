@@ -41,8 +41,10 @@ class InitialStructTestCase(unittest.TestCase):
 
 
 class StructTestCase(unittest.TestCase):
-
+    """Tests for Struct class."""
+    
     def testAttributePath(self):
+        """Attributes can be looked up using __getattr__."""
         s = struct.Struct(None, [("value", 0)])
         pair = struct.Struct(None,
                              [("a1", s), ("a2", s), ("a1.value", 2)])
@@ -50,6 +52,29 @@ class StructTestCase(unittest.TestCase):
         self.assertEquals(n.a1.value, 2)
         self.assertEquals(n.a2.value, 0)
 
+    def testStructRendering(self):
+        """Structs can be rendered to strings using coil.text format."""
+        s = struct.Struct(None, [("float", 12.5),
+                                 ("integer", 123),
+                                 ("string", u'a\t\r"\nx!\u3456'),
+                                 ("list", [12, "hello", []]),
+                                 ("struct", struct.Struct(None, [("key", 12)]))])
+        rep = repr(s)
+        expected = u'''\
+float: 12.5
+integer: 123
+string: "a\\t\\r\\"\\nx!\u3456"
+list: [12 "hello" []]
+struct: {
+    key: 12
+}
+'''.encode("utf-8")
+        self.assertEquals(rep, expected)
+
+        # now try round-trip parse/render
+        from coil import text
+        self.assertEquals(repr(text.fromString(rep)), rep)
+        
 
 class NodeTestCase(unittest.TestCase):
 

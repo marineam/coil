@@ -150,7 +150,7 @@ class Struct:
         return False
     
     def attributes(self):
-        """Return list of all attributes."""
+        """Return iterator of all attributes."""
         if self.prototype is not None:
             for i in self.prototype.attributes():
                 if i not in self._deletedAttrs:
@@ -160,7 +160,16 @@ class Struct:
                 yield i
 
     def _quote(self, o):
+        if isinstance(o, str):
+            o = o.decode("utf-8")
         if isinstance(o, unicode):
+            # quote characters:
+            for c, r in ((u"\\", u"\\\\"),
+                         (u"\n", u"\\n"),
+                         (u"\r", u"\\r"),
+                         (u"\t", u"\\t"),
+                         (u"\"", u"\\\"")):
+                o = o.replace(c, r)
             return u'"' + o + u'"'
         elif isinstance(o, list):
             return u"[" + u" ".join([self._quote(i) for i in o]) + u"]"
