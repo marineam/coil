@@ -4,11 +4,13 @@
 - fix unicode bugs (make *everything* unicode)
 - More tests
 - Better names
+- docstrings for classes and methods
+- new style classes
 - create formal grammar for coil and make parser use it
 - Text format:
   - make comments into a special attribute type
   - Multi-line strings, maybe
-- Serialization of Python objects to text format
+- Better serialization of Python objects to text format
 - Ability to compare structs
 - Write test for Struct.copy()
 
