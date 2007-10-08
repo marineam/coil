@@ -42,6 +42,12 @@ class InitialStructTestCase(unittest.TestCase):
 
 class StructTestCase(unittest.TestCase):
     """Tests for Struct class."""
+
+    def testIterItems(self):
+        """Test functionality of iteritems."""
+        s = struct.Struct(None, [("value", 0), ("value2", [])])
+        self.assertEquals(list(s.iteritems()),
+                          [("value", 0), ("value2", [])])
     
     def testAttributePath(self):
         """Attributes can be looked up using __getattr__."""

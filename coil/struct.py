@@ -159,6 +159,11 @@ class Struct:
             if i not in self._deletedAttrs:
                 yield i
 
+    def iteritems(self):
+        """Return iterator of (key, value) pairs."""
+        for i in self.attributes():
+            yield (i, self.get(i))
+
     def _quote(self, o):
         if isinstance(o, str):
             o = o.decode("utf-8")
@@ -218,7 +223,7 @@ class StructNode:
     def iteritems(self):
         for i in self.attributes():
             yield (i, self.get(i))
-
+    
     def _followLink(self, link):
         node = self
         for p in link.path:
