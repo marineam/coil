@@ -1,0 +1,11 @@
+sub: {
+    y: 2
+    x: "default"
+    two: {
+        parentx: =..x
+        root: =@root.m
+        value: "hello"
+    }
+}
+
+m: "mem"

@@ -133,10 +133,18 @@ class SymbolicExpressionReceiver(object):
             self.parseError("@extends target not found: %r" % (value,))
         self.structStack[-1].prototype = extends._struct.copy()
 
-    def _setExtendsFromPath(self, path):
+    def _setExtendsFromPath(self, path, substruct=()):
+        """Set prototype for current struct to coil file at given path.
+
+        If substruct is given it should be a list of keys, such that
+        it refers to a sub-struct of that file.
+        """
         self._checkForExtends()
         try:
-            self.structStack[-1].prototype = fromFile(path)
+            n = fromFile(path)
+            for key in substruct:
+                n = n.get(key)
+            self.structStack[-1].prototype = n
         except (OSError, IOError):
             self.parseError("Error reading file")
         
@@ -161,13 +169,20 @@ class SymbolicExpressionReceiver(object):
         self._setExtendsFromPath(fullpath)
 
     def special_file(self, value):
+        if isinstance(value, list):
+            if not len(value) == 2 or not isinstance(value[1], unicode):
+                self.parseError("@file only takes two-argument list: [path substruct]")
+            substruct = value[1].split(u".")
+            value = value[0]
+        else:
+            substruct = ()
         if not isinstance(value, unicode):
             self.parseError("@file must get string as value")
         if not os.path.isabs(value):
             if self.filePath is None:
                 self.parseError("@file can only load relative paths if source path ('filePath' arguemtn) is known")
             value = os.path.abspath(os.path.join(os.path.dirname(self.filePath), value))
-        self._setExtendsFromPath(value)
+        self._setExtendsFromPath(value, substruct)
 
     def _valueReceived(self, xp):
         if not self.attributeStack:

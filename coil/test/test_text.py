@@ -222,7 +222,33 @@ foo: {
         # to sub-struct that did the @file.
         self.assertEquals(node.sub.y.x, u"foo")
         self.assertEquals(node.sub.y.a2, u"bar")
-
+        self.assertEquals(node.sub2.y.a2, 2) # 'a' didn't get overriden this time
+        # XXX TODO
+        #self.assertEquals(node.sub3.a2, 2) # 'a' didn't get overriden this time
+        
+    def testFileSubImport(self):
+        """@file can reference a sub-struct of imported file."""
+        s = text.fromFile(sibpath(__file__, "filesubimport.coil"))
+        node = struct.StructNode(s)
+        # 0. Top-level import:
+        self.assertEquals(node.imp.sub.x, "default")
+        self.assertEquals(node.imp.sub.y, 2)
+        # XXX TODO
+        #self.assertEquals(node.imp.sub.two.root, "mem")
+        self.assertEquals(node.imp.sub.two.parentx, "default")
+        self.assertEquals(node.imp.m, "mem")
+        # 1. Single level sub-struct:
+        self.assertEquals(node.sub.x, "foo")
+        self.assertEquals(node.sub.y, 2)
+        # XXX TODO
+        #self.assertEquals(node.sub.two.root, "mem")
+        self.assertEquals(node.sub.two.parentx, "foo")
+        # 2. Two level sub-struct:
+        self.assertEquals(node.subsub.parentx, "bar")
+        # XXX TODO
+        #self.assertEquals(node.subsub.root, "mem")
+        self.assertEquals(node.subsub.value, "hello")
+    
     def testFileImportAtTopLevel(self):
         path = sibpath(__file__, "example3.coil")
         s = text.fromFile(path)

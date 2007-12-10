@@ -1,5 +1,7 @@
-== Short term ==
-
+== Short term == 
+- @root links broken with sub-structs - maybe don't support @root
+  links at all?
+- Finish and document sub-struct @file/@package imports.
 - StructAttributeErrors should know where they came from
 - fix unicode bugs (make *everything* unicode)
 - More tests
