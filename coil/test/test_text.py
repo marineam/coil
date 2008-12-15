@@ -15,6 +15,10 @@ class TextTestCase(unittest.TestCase):
             [r'x: "\\n"', ur"\n"],
             ['x: "' + u"\u3456".encode("utf-8") + '"', u'\u3456'],
             [r'x: "\" \ x"', u'" \ x'],
+            [r'x: "double"', u'double'],
+            [r"x: 'single'", u'single'],
+            [r"""x: '"both"'""", u'"both"'],
+            [r'''x: "'both'"''', u"'both'"]
             ):
             x = text.fromString(structStr).get("x")
             self.assertEquals(x, value)

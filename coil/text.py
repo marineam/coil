@@ -10,11 +10,20 @@ _unquote = {u'\\': u'\\',
             u'n': u'\n',
             u'r': u'\r',
             u't': u'\t',
-            u'"': u'"',
             }
 
 def pythonString(st):
-    assert st[0] == '"' and st[-1] == '"'
+    assert st[0] in ("'", '"')
+    if st[0] == "'":
+        quote = "'"
+    else:
+        quote = '"'
+    assert st[-1] == quote
+
+    # Add the quote character to the un-escape list
+    unquote = _unquote
+    unquote[quote.decode("utf-8")] = quote.decode("utf-8")
+
     # strip off the quotes
     st = st[1:-1].decode("utf-8")
     pos = 0
@@ -22,7 +31,7 @@ def pythonString(st):
         bs = st.find(u'\\', pos)
         if bs == -1 or bs == len(st):
             break
-        new = _unquote.get(st[bs + 1])
+        new = unquote.get(st[bs + 1])
         if new:
             first_part = st[:bs]
             st = first_part + new + st[bs + 2:]
@@ -48,7 +57,7 @@ pathRegex = r"[@a-zA-Z_-]([@a-zA-Z0-9_.-])*"
 ATTRIBUTE = re.compile(pathRegex + ":")
 LINK = re.compile("=([.])*" + pathRegex)
 REFERENCE = re.compile("(([.]+)|(@root))"  +  r"([@a-zA-Z0-9_.-])*")
-STRING = re.compile(r'"(\\.|[^\\"])*"')
+STRING = re.compile(r'''("(\\.|[^\\"])*"|'(\\.|[^\\'])*')''')
 NUMBER = re.compile(r'-?[0-9]+(\.[0-9]*)?')
 whitespaceRegex = '[ \n\r\t]+'
 WHITESPACE = re.compile(whitespaceRegex)
