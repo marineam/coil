@@ -16,7 +16,7 @@ class _Constant:
 
     def __copy__(self, d):
         return self
-    
+
     def __str__(self, other):
         return "<%s>" % self.s
 
@@ -37,7 +37,7 @@ class Link:
 
     def copy(self):
         return self.__class__(*self.path)
-    
+
     def _relativize(self, depth):
         """Turn absolute path into relative path."""
         if self.path[0] == ROOT:
@@ -97,7 +97,7 @@ class Struct:
                 value = value.copy()
             copy._attrsDict[name] = value
         return copy
-    
+
     def _addDelete(self, path):
         key = path.pop(0)
         assert key
@@ -107,7 +107,7 @@ class Struct:
             # XXX use contructor, maybe?, plus this is inefficient as hell
             self._attrsDict[key] = Struct(self.get(key))
             self._attrsDict[key]._addDelete(path)
-    
+
     def _add(self, path, value):
         key = path.pop(0)
         assert key
@@ -148,7 +148,7 @@ class Struct:
         if self.prototype is not None:
             return self.prototype.has_key(attr)
         return False
-    
+
     def attributes(self):
         """Return iterator of all attributes."""
         if self.prototype is not None:
@@ -180,7 +180,7 @@ class Struct:
             return u"[" + u" ".join([self._quote(i) for i in o]) + u"]"
         else:
             return unicode(o)
-    
+
     def _strBody(self, indent):
         l = []
         for key in self.attributes():
@@ -191,10 +191,10 @@ class Struct:
             else:
                 l.extend([prefix, self._quote(val), "\n"])
         return u"".join(l).encode("utf-8")
-    
+
     def __str__(self):
         return "<Struct %x:\n%s>" % (id(self), self._strBody(2))
-    
+
     def __repr__(self):
         return self._strBody(0)
 
@@ -208,7 +208,7 @@ class StructNode:
 
     def has_key(self, attr):
         return self._struct.has_key(attr)
-    
+
     def get(self, attr, default=_raise):
         val = self._struct.get(attr, default)
         if isinstance(val, Struct):
@@ -223,7 +223,7 @@ class StructNode:
     def iteritems(self):
         for i in self.attributes():
             yield (i, self.get(i))
-    
+
     def _followLink(self, link):
         node = self
         for p in link.path:
@@ -239,7 +239,7 @@ class StructNode:
 
     def _wrap(self, attr, struct):
         return self.__class__(struct, self)
-    
+
     def __getattr__(self, attr):
         return self.get(attr)
 

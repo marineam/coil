@@ -39,7 +39,7 @@ def pythonString(st):
         else:
             pos += 1
     return st
-    
+
 
 class ParseError(Exception):
     def __init__(self, filePath, line, column, reason):
@@ -66,8 +66,8 @@ WHITESPACE = re.compile(whitespaceRegex)
 class SymbolicExpressionReceiver(object):
 
     # I don't ever want to buffer more than 64k of data before bailing.
-    maxUnparsedBufferSize = 32 * 1024 
-    
+    maxUnparsedBufferSize = 32 * 1024
+
     def __init__(self, filePath):
         self.filePath = filePath
         self.structStack = [struct.Struct(None)]
@@ -77,7 +77,7 @@ class SymbolicExpressionReceiver(object):
         self.column = 0
         self._buffer = ""
         self.links = [] # list of (depth, link) for all Links created
-    
+
     def parseError(self, reason):
         raise ParseError(self.filePath, self.line, self.column, reason)
 
@@ -91,7 +91,7 @@ class SymbolicExpressionReceiver(object):
         if not self.listStack:
             self.parseError("unmatched closing bracket.")
         aList = self.listStack.pop()
-        if not self.listStack:                
+        if not self.listStack:
             self._valueReceived(aList)
 
     def openStruct(self):
@@ -109,14 +109,14 @@ class SymbolicExpressionReceiver(object):
         # they were added only when closed @extends wouldn't necessarily find them.
         self.structStack[-1]._add(attribute.split("."), s)
         self.structStack.append(s)
-    
+
     def closeStruct(self):
         if len(self.structStack) == 1:
             self.parseError("extra or unmatched }")
         pre = self.structStack.pop()
         self._valueReceived(pre)
-    
-    def _tokenReceived(self, tok):        
+
+    def _tokenReceived(self, tok):
         if self.listStack:
             self.listStack[-1].append(tok)
             if not self.listStack:
@@ -156,7 +156,7 @@ class SymbolicExpressionReceiver(object):
             self.structStack[-1].prototype = n
         except (OSError, IOError):
             self.parseError("Error reading file")
-        
+
     def special_package(self, value):
         if not isinstance(value, unicode):
             self.parseError("@package must get string as value")
@@ -239,8 +239,8 @@ class SymbolicExpressionReceiver(object):
             return struct.Link(*parts)
         except ValueError:
             self.parseError("Bad link path: %r" % (linkStr,))
-    
-    def _linkReceived(self, linkStr):    
+
+    def _linkReceived(self, linkStr):
         self._valueReceived(self._parseLink(linkStr))
 
     def _referenceReceived(self, symbol):
@@ -248,10 +248,10 @@ class SymbolicExpressionReceiver(object):
             self._valueReceived(self._parseLink(symbol))
         else:
             self.parseError("References can only be used after @extends")
-    
+
     def _atomReceived(self, symbol):
         self._tokenReceived(self._makeAtom(symbol))
-    
+
     def _makeAtom(self, st):
         if st == "None":
             return None
@@ -280,7 +280,7 @@ class SymbolicExpressionReceiver(object):
             if m:
                 line = line[m.end():]
                 continue
-            
+
             if line[0] == '[':
                 self.openParen()
                 line = line[1:]
