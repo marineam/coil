@@ -4,207 +4,257 @@ Structs can extend other structs (i.e. use another as a prototype).
 """
 
 from __future__ import generators
-__metaclass__ = type
+from UserDict import DictMixin
 
-class _Constant:
-
-    def __init__(self, s):
-        self.s = s
-
-    def __deepcopy__(self, d):
-        return self
-
-    def __copy__(self, d):
-        return self
-
-    def __str__(self, other):
-        return "<%s>" % self.s
-
-
-ROOT = _Constant("ROOT")
-CONTAINER = _Constant("CONTAINER")
-
-class Link:
-    """A lazy link to a configuration atom.
-
-    Resolution will be done only when follow() is called.
-    """
-
-    def __init__(self, *path):
-        if not path:
-            raise ValueError, "must have at least one segment"
-        self.path = list(path)
-
-    def copy(self):
-        return self.__class__(*self.path)
-
-    def _relativize(self, depth):
-        """Turn absolute path into relative path."""
-        if self.path[0] == ROOT:
-            self.path[:1] = [CONTAINER] * depth
-
-    def __unicode__(self):
-        return repr(self).decode("ascii")
-
-    def __repr__(self):
-        result = ["="]
-        for p in self.path:
-            if p is CONTAINER:
-                result.append(".")
-            elif p is ROOT:
-                result.append("@root")
-            else:
-                result.append("." + p)
-        return "".join(result)
-
-
-class StructAttributeError(AttributeError):
+class BrokenLink(Exception):
+    """A Link object references a Struct that cannot be found"""
     pass
 
+class Link(object):
+    """The coil version of a symlink."""
+
+    def __init__(self, path, container):
+        assert isinstance(container, Struct)
+        self.container = container
+
+        assert path and isinstance(path, basestring)
+        self.path = path
+
+    def get(self):
+        # If path started with .. remove the extra dot.
+        # that way each dot means go to the parent so
+        # ... or .... can be used for extra levels
+        path = self.path.split('.')
+        if path[0] = "":
+            del path[0]
+
+        node = self
+
+        if path[0] == "@root":
+            # Find the root node
+            del path[0]
+            while node.container != None:
+                node = node.container
+                assert isinstance(node, Struct)
+        else:
+            # Find a relative parent node
+            while path[0] == "":
+                del path[0]
+                node = node.container
+                assert isinstance(node, Struct)
+
+        for key in path:
+            try:
+                node = node[key]
+            except KeyError:
+                raise BrokenLink("key '%s' in path '%s' does not exist" %
+                        (key, self.path))
+
+            if path and not isinstance(node, Struct):
+                raise BrokenLink("key '%s' in path '%s' is not a Struct" %
+                        (key, self.path))
+
+        return node
+
+    def __repr__(self):
+        return "<Link %s>" % repr(self.path)
 
 _raise = object()
 
-class Struct:
+class Struct(object, DictMixin):
     """A configuration structure."""
 
-    def __init__(self, prototype, attrs=(), deletedAttrs=()):
+    def __init__(self, prototype=None, attrs=(), deleted=(), container=None):
         """
-        @param prototype: another Struct that acts as a prototype for
-        this one.
+        @param prototype: a Link to another Struct that this is based on.
         @param attrs: a list of (name, value) tuples. If name contains
-        ':' this will be taken to indicate a path.
-        @param deletedAttrs: a list of attribute names that, though
+        '.' this will be taken to indicate a path.
+        @param deleted: a list of attribute names that, though
         present in the prototype, should not be present in this
         instance.
+        @param container: the parent Struct if there is one.
         """
-        assert prototype is None or isinstance(prototype, Struct)
-        self.prototype = prototype
-        self._deletedAttrs = {}
-        self._attrsOrder = []
-        self._attrsDict = {}
+
+        assert prototype is None or isinstance(prototype, Link)
+
+        self.container = container
+        self._prototype = prototype
+        self._deleted = []
+        self._values = {}
+        self._order = []
+
         for key, value in attrs:
-            self._add(key.split("."), value)
-        for key in deletedAttrs:
-            self._addDelete(key.split("."))
+            self[key] = value
+
+        for key in deleted:
+            if key in self:
+               del self[key]
 
     def copy(self):
         """Return a self-contained copy."""
+
         copy = self.__class__(None)
-        for name in self.attributes():
-            copy._attrsOrder.append(name)
-            value = self.get(name)
-            if isinstance(value, (Struct, Link)):
+
+        for key, value in self.iteritems():
+            if isinstance(value, Struct):
                 value = value.copy()
-            copy._attrsDict[name] = value
+
+            copy[key] = value
+
         return copy
 
-    def _addDelete(self, path):
-        key = path.pop(0)
-        assert key
-        if not path:
-            self._deletedAttrs[key] = True
-        else:
-            # XXX use contructor, maybe?, plus this is inefficient as hell
-            self._attrsDict[key] = Struct(self.get(key))
-            self._attrsDict[key]._addDelete(path)
+    def __setitem__(self, path, value):
+        if not isinstance(path, basestring):
+            raise TypeError("key must be a string")
 
-    def _add(self, path, value):
+        path = path.split('.', 1)
         key = path.pop(0)
         assert key
+
         if not path:
-            if self.prototype is None:
-                self._attrsOrder.append(key)
+            if key in self._deleted:
+                self._deleted.remove(key)
+            if key not in self:
+                self._order.append(key)
+            self._values[key] = value
+        else:
+            if not path[0]:
+                raise TypeError("key contains a trailing .")
+
+            try:
+                struct = self.get(key, follow_links=False)
+            except KeyError:
+                struct = self.__class__(None, container=self)
+                self[key] = struct
+
+            if isinstance(struct, Link):
+                # Rather than following links we should copy them
+                struct = struct.get().copy()
+
+            struct[path[0]] = value
+
+    def __delitem__(self, path):
+        if not isinstance(path, basestring):
+            raise TypeError("key must be a string")
+
+        path = path.split('.', 1)
+        key = path.pop(0)
+        assert key
+
+        if not path:
+            if key in self._order:
+                self._order.remove(key)
+
+            if key in self._values:
+                del self._values[key]
+            elif self._prototype and key in self._prototype.get():
+                self._deleted.append(key)
             else:
-                try:
-                    self.prototype.get(key)
-                except StructAttributeError:
-                    self._attrsOrder.append(key)
-            self._attrsDict[key] = value
+                raise KeyError("key does not exist")
         else:
-            # XXX same as in _addDelete
-            self._attrsDict[key] = Struct(self.get(key))
-            self._attrsDict[key]._add(path, value)
+            struct = self.get(key, follow_links=False)
 
-    def get(self, attr, default=_raise):
-        """Get an attribute, checking prototypes as necessary."""
-        if attr in self._deletedAttrs:
-            raise StructAttributeError, attr
-        if attr in self._attrsDict:
-            return self._attrsDict[attr]
-        elif self.prototype is not None:
-            return self.prototype.get(attr, default=default)
+            if isinstance(struct, Link):
+                # Rather than following links we should create a new struct
+                struct = self.__class__(struct.path, container=self)
+                self[key] = struct
+
+            if not isinstance(struct, Struct):
+                raise TypeError("item '%s' in key is not a Struct" % key)
+
+            del struct[path[0]]
+
+    def __getitem__(self, path):
+        return self.get(path)
+
+    def get(self, key, default=_raise, follow_links=True):
+        """Get an item, following inheritance and links."""
+
+        if not isinstance(key, basestring):
+            raise TypeError("key must be a string")
+
+        path = path.split('.', 1)
+        key = path.pop(0)
+        assert key
+
+        if key in self._values:
+            value = self._values[key]
+        elif (follow_links and self._prototype
+                and key in self._prototype.get()
+                and key not in self._deleted):
+            value = self._prototype[key]
+        elif not follow_links and self._prototype:
+            value = Link("%s.%s" % (self._prototype.path, key))
         else:
-            if default is _raise:
-                raise StructAttributeError, attr
+            if default == _raise:
+                raise KeyError("key does not exist")
             else:
                 return default
 
-    def has_key(self, attr):
-        """Return if struct has this attribute."""
-        if attr in self._deletedAttrs:
-            return False
-        if attr in self._attrsDict:
-            return True
-        if self.prototype is not None:
-            return self.prototype.has_key(attr)
-        return False
-
-    def attributes(self):
-        """Return iterator of all attributes."""
-        if self.prototype is not None:
-            for i in self.prototype.attributes():
-                if i not in self._deletedAttrs:
-                    yield i
-        for i in self._attrsOrder:
-            if i not in self._deletedAttrs:
-                yield i
-
-    def iteritems(self):
-        """Return iterator of (key, value) pairs."""
-        for i in self.attributes():
-            yield (i, self.get(i))
-
-    def _quote(self, o):
-        if isinstance(o, str):
-            o = o.decode("utf-8")
-        if isinstance(o, unicode):
-            # quote characters:
-            for c, r in ((u"\\", u"\\\\"),
-                         (u"\n", u"\\n"),
-                         (u"\r", u"\\r"),
-                         (u"\t", u"\\t"),
-                         (u"\"", u"\\\"")):
-                o = o.replace(c, r)
-            return u'"' + o + u'"'
-        elif isinstance(o, list):
-            return u"[" + u" ".join([self._quote(i) for i in o]) + u"]"
-        else:
-            return unicode(o)
-
-    def _strBody(self, indent):
-        l = []
-        for key in self.attributes():
-            prefix = "%s%s: " % (indent * " ", key)
-            val = self.get(key)
-            if isinstance(val, Struct):
-                l.extend([prefix, "{\n", val._strBody(indent + 4),  (" " * indent), "}\n"])
+        if path:
+            if isinstance(value, Link):
+                value = Link("%s.%s" % (value.path, path[0]))
+            elif isinstance(struct, Struct):
+                value = value.get(path[0], default, follow_links)
             else:
-                l.extend([prefix, self._quote(val), "\n"])
-        return u"".join(l).encode("utf-8")
+                raise TypeError("item '%s' in key is not a Struct" % key)
 
-    def __str__(self):
-        return "<Struct %x:\n%s>" % (id(self), self._strBody(2))
+        return value
+
+    def __contains__(self, path):
+        if not isinstance(key, basestring):
+            raise TypeError("key must be a string")
+
+        path = path.split('.', 1)
+        key = path.pop(0)
+        assert key
+
+        if not path:
+            if key in self._values:
+                return True
+            elif self._prototype and key not in self._deleted:
+                struct = self._prototype.get()
+                assert isinstance(struct, Struct)
+                return key in struct
+            else:
+                return False
+        else:
+            struct = self[key]
+
+            if not isinstance(struct, Struct):
+                raise TypeError("item '%s' in key is not a Struct" % key)
+
+            return path[0] in struct
+
+    def keys(self):
+        if self._prototype:
+            all = [x for x in self._prototype.get() if x not in self._deleted]
+        else:
+            all = []
+
+        all.extend(self._order)
+
+        return all
 
     def __repr__(self):
-        return self._strBody(0)
+        return self.repr(self, "")
 
+    def repr(self, indent):
+        repstr = "%s{\n" % indent
+        for key, val in self.iteritems():
+            repstr += "%s%s: " % (indent, key)
+            if isinstance(val, Struct):
+                repstr += val.repr(indent += "    ")
+            else:
+                repstr += repr(val)
+        repstr += "%s\n}" % indent
+        return s
 
 class StructNode:
-    """A wrapper for Structs that knows about containment."""
+    """Only here for partial compatibility"""
 
-    def __init__(self, struct, container=None):
+    def __init__(self, struct):
         self._struct = struct
-        self._container = container
 
     def has_key(self, attr):
         return self._struct.has_key(attr)
@@ -213,8 +263,6 @@ class StructNode:
         val = self._struct.get(attr, default)
         if isinstance(val, Struct):
             val = self._wrap(attr, val)
-        elif isinstance(val, Link):
-            val = self._followLink(val)
         return val
 
     def attributes(self):
@@ -224,19 +272,6 @@ class StructNode:
         for i in self.attributes():
             yield (i, self.get(i))
 
-    def _followLink(self, link):
-        node = self
-        for p in link.path:
-            if p is CONTAINER:
-                node = node._container
-            elif p is ROOT:
-                while node._container != None:
-                    node = node._container
-            else:
-                # XXX use get() if is Struct
-                node = getattr(node, p)
-        return node
-
     def _wrap(self, attr, struct):
         return self.__class__(struct, self)
 
@@ -244,4 +279,4 @@ class StructNode:
         return self.get(attr)
 
 
-__all__ = ["Struct", "StructNode", "Link", "StructAttributeError"]
+__all__ = ["Struct", "StructNode", "Link", "BrokenLink"]
