@@ -3,97 +3,68 @@
 from twisted.trial import unittest
 from coil import struct
 
-
-class InitialStructTestCase(unittest.TestCase):
+class StructTestCase(unittest.TestCase):
 
     def setUp(self):
-        server = struct.Struct(None, [('host', "localhost"),
-                                      ('port', 0)])
-        imapClient = struct.Struct(None,
-                                   [('server', server),
-                                    ('username', ""),
-                                    ('password', "")])
-        keychainImap = struct.Struct(None,
-                              [('password', ""),
-                               ('description', "a keychain"),
-                               ('imap', struct.Struct(imapClient, [('password',  struct.Link(struct.CONTAINER, "password"))]))])
-        self.joeKeychain = struct.Struct(keychainImap,
-                                         [('password', "mypassword"),
-                                          ('imap.username', "joe")])
-        self.joenode = struct.StructNode(self.joeKeychain)
-        self.nodesc = struct.Struct(self.joeKeychain, deletedAttrs=("description",))
-        self.nodescNode = struct.StructNode(self.nodesc)
+        # Use a tuple to preserve order
+        self.data = (('first', {
+                        'string': "something",
+                        'float': 2.5,
+                        'int': 1 }),
+                    ('second', "something else"),
+                    ('last', [ "list", "of", "strings" ]))
+        self.struct = struct.Struct(self.data)
 
-    def testAttribute(self):
-        self.assertEquals(self.joenode.description, "a keychain")
-        self.assertEquals(self.joenode.imap.server.host, "localhost")
+    def testFirstLevelContains(self):
+        for key in ('first', 'second', 'last'):
+            self.assert_(key in self.struct)
 
-    def testLink(self):
-        self.assertEquals(self.joenode.imap.password, "mypassword")
+    def testSecondLevelContains(self):
+        for key in ('string', 'float', 'int'):
+            self.assert_(key in self.struct['first'])
 
-    def testOverride(self):
-        self.assertEquals(self.joenode.imap.username, "joe")
+    def testKeyOrder(self):
+        self.assertEquals(self.struct.keys(), ['first', 'second', 'last'])
 
-    def testDeletion(self):
-        self.assert_(not hasattr(self.nodescNode, "description"))
-        self.assertEquals(list(self.joeKeychain.attributes()), ["password", "description", "imap"])
-        self.assertEquals(list(self.nodesc.attributes()), ["password", "imap"])
+    def testGetItem(self):
+        self.assertEquals(self.struct['second'], "something else")
 
+    def testGetSimple(self):
+        self.assertEquals(self.struct.get('second'), "something else")
 
-class StructTestCase(unittest.TestCase):
-    """Tests for Struct class."""
+    def testGetDefault(self):
+        self.assertEquals(self.struct.get('bogus', "awesome"), "awesome")
+
+    def testGetPath(self):
+        self.assertEquals(self.struct.get('first.int'), 1)
+
+    def testGetParent(self):
+        child = self.struct['first']
+        self.assertEquals(child.get('..second'), "something else")
+
+    def testGetRoot(self):
+        child = self.struct['first']
+        self.assertEquals(child.get('@root.second'), "something else")
 
     def testIterItems(self):
-        """Test functionality of iteritems."""
-        s = struct.Struct(None, [("value", 0), ("value2", [])])
-        self.assertEquals(list(s.iteritems()),
-                          [("value", 0), ("value2", [])])
-    
-    def testAttributePath(self):
-        """Attributes can be looked up using __getattr__."""
-        s = struct.Struct(None, [("value", 0)])
-        pair = struct.Struct(None,
-                             [("a1", s), ("a2", s), ("a1.value", 2)])
-        n = struct.StructNode(pair)
-        self.assertEquals(n.a1.value, 2)
-        self.assertEquals(n.a2.value, 0)
+        itemlist = [("one", 1), ("two", 2), ("three", 3)]
+        self.assertEquals(list(struct.Struct(itemlist).iteritems()), itemlist)
 
-    def testStructRendering(self):
-        """Structs can be rendered to strings using coil.text format."""
-        s = struct.Struct(None, [("float", 12.5),
-                                 ("integer", 123),
-                                 ("string", u'a\t\r"\nx!\u3456'),
-                                 ("list", [12, "hello", []]),
-                                 ("struct", struct.Struct(None, [("key", 12)]))])
-        rep = repr(s)
-        expected = u'''\
-float: 12.5
-integer: 123
-string: "a\\t\\r\\"\\nx!\u3456"
-list: [12 "hello" []]
-struct: {
-    key: 12
-}
-'''.encode("utf-8")
-        self.assertEquals(rep, expected)
+    def testKeyMissing(self):
+        self.assertRaises(struct.KeyMissingError,
+                lambda: self.struct['bogus'])
+        self.assertRaises(struct.KeyMissingError,
+                lambda: self.struct.get('bad'))
 
-        # now try round-trip parse/render
-        from coil import text
-        self.assertEquals(repr(text.fromString(rep)), rep)
-        
+    def testKeyType(self):
+        self.assertRaises(struct.KeyTypeError,
+                lambda: self.struct[None])
+        self.assertRaises(struct.KeyTypeError,
+                lambda: self.struct.get(None))
 
-class NodeTestCase(unittest.TestCase):
+    def testKeyValue(self):
+        self.assertRaises(struct.KeyValueError,
+                lambda: self.struct['first#'])
+        self.assertRaises(struct.KeyValueError,
+                lambda: self.struct.get('first..second'))
 
-    def testNodeMethods(self):
-        s = struct.Struct(None, [("value", 0)])
-        n = struct.StructNode(s)
-        sub = struct.Struct(s)
-        subn = struct.StructNode(sub)
-        for o in (s, n, sub, subn):
-            self.assertEquals(list(o.attributes()), ["value"])
-            self.assertEquals(o.get("value"), 0)
-            self.assertRaises(struct.StructAttributeError, o.get, "foo")
-            self.assertEquals(o.get("foo", 2), 2)
-            self.assertEquals(o.get("foo", None), None)
-            self.assertEquals(o.has_key("value"), True)
-            self.assertEquals(o.has_key("foo"), False)
