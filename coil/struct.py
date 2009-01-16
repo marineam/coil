@@ -9,6 +9,8 @@ from __future__ import generators
 import re
 from UserDict import DictMixin
 
+from coil import tokenizer
+
 class StructError(Exception):
     """Generic error for Struct"""
 
@@ -53,8 +55,10 @@ _missing = object()
 class Struct(object, DictMixin):
     """A configuration structure."""
 
-    KEY = re.compile(r'^[a-zA-Z][\w-]*$')
-    PATH = re.compile(r'^((\.\.+)|@root\.)?[a-zA-Z][\w-]*(\.[a-zA-Z][\w-]*)*$')
+    ATOM_REGEX = tokenizer.Tokenizer.ATOM_REGEX
+    ATOM = re.compile(r'^%s$' % ATOM_REGEX)
+    PATH_REGEX = r'^((\.\.+)|@root\.)?%s(\.%s)*$' % (ATOM_REGEX, ATOM_REGEX)
+    PATH = re.compile(PATH_REGEX)
 
     def __init__(self, base=(), container=None, name=None, recursive=True):
         """
@@ -100,7 +104,7 @@ class Struct(object, DictMixin):
 
         if not isinstance(key, basestring):
             raise KeyTypeError(self, key)
-        if not re.match(self.KEY, key):
+        if not re.match(self.ATOM, key):
             raise KeyValueError(self, key)
 
     def __contains__(self, key):
