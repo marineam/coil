@@ -22,7 +22,7 @@ class UnicodeError(ParseError):
 class Token(object):
     """Represents a single token"""
 
-    def __init__(self, tokenizer, type, value):
+    def __init__(self, tokenizer, type=None, value=None):
         self.type = type
         self.value = value
         self.path = tokenizer.path
@@ -59,20 +59,42 @@ class Tokenizer(object):
         self.column = 0
         self._buffer = ""
         self._encoding = encoding
+        self._stack = []
+        self._done = False
 
         # We iterate over the input in both next and _parse_string
         self._next_line = self._next_line_generator().next
 
-    def __iter__(self):
-        return self
+    def push(self, token):
+        """Push a token back into the tokenizer"""
+
+        assert isinstance(token, Token)
+        self._stack.append(token)
+
+    def peek(self):
+        """Peek at the next token but keep it in the tokenizer"""
+
+        token = self.next()
+        self.push(token)
+        return token
 
     def next(self):
         """Read the input in search of the next token"""
 
         while True:
+            if self._stack:
+                return self._stack.pop()
+
+            if self._done:
+                return Token(self)
+
             if not self._buffer:
-                # let _next_line raise StopIteration
-                self._buffer = self._next_line()
+                try:
+                    self._buffer = self._next_line()
+                except StopIteration:
+                    self._done = True
+                    continue
+
                 self.line += 1
                 self.column = 1
 
@@ -165,6 +187,7 @@ class Tokenizer(object):
                 try:
                     new = self._next_line()
                 except StopIteration:
+                    self._done = True
                     raise LexicalError(self, "Unterminated string")
 
                 lines += 1

@@ -7,7 +7,7 @@ class TokenizerTestCase(unittest.TestCase):
 
     def testEmpty(self):
         tok = tokenizer.Tokenizer([""])
-        self.assertRaises(StopIteration, tok.next)
+        self.assertEquals(tok.next().type, None)
 
     def testAtom(self):
         tok = tokenizer.Tokenizer(["somekey"])
@@ -17,7 +17,7 @@ class TokenizerTestCase(unittest.TestCase):
         self.assertEquals(first.value, "somekey")
         self.assertEquals(first.line, 1)
         self.assertEquals(first.column, 1)
-        self.assertRaises(StopIteration, tok.next)
+        self.assertEquals(tok.next().type, None)
 
     def testString(self):
         tok = tokenizer.Tokenizer(["'string'"])
@@ -26,7 +26,7 @@ class TokenizerTestCase(unittest.TestCase):
         self.assertEquals(first.value, "string")
         self.assertEquals(first.line, 1)
         self.assertEquals(first.column, 1)
-        self.assertRaises(StopIteration, tok.next)
+        self.assertEquals(tok.next().type, None)
 
     def testCounters(self):
         tok = tokenizer.Tokenizer(["'string' '''foo''' '' '''''' other",
@@ -55,4 +55,4 @@ class TokenizerTestCase(unittest.TestCase):
         token = tok.next() # bye
         self.assertEquals(token.line, 4)
         self.assertEquals(token.column, 3)
-        self.assertRaises(StopIteration, tok.next)
+        self.assertEquals(tok.next().type, None)
