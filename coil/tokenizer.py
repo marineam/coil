@@ -34,7 +34,7 @@ class Tokenizer(object):
     ATOM_REGEX = r'[a-zA-Z_][\w-]*'
     ATOM = re.compile(ATOM_REGEX)
 
-    FLOAT_REGEX = r'-?[0-9]+(\.[0-9]*)?'
+    FLOAT_REGEX = r'-?[0-9]+\.[0-9]+'
     FLOAT = re.compile(FLOAT_REGEX)
     INTEGER_REGEX = r'-?[0-9]+'
     INTEGER = re.compile(INTEGER_REGEX)
@@ -124,18 +124,18 @@ class Tokenizer(object):
                 self.column += match.end()
                 return token
 
-            # Integers
-            match = self.INTEGER.match(self._buffer)
+            # Floats
+            match = self.FLOAT.match(self._buffer)
             if match:
-                token = Token(self, 'INTEGER', int(match.group(0)))
+                token = Token(self, 'FLOAT', float(match.group(0)))
                 self._buffer = self._buffer[match.end():]
                 self.column += match.end()
                 return token
 
-            # Floats
+            # Integers
             match = self.INTEGER.match(self._buffer)
             if match:
-                token = Token(self, 'FLOAT', float(match.group(0)))
+                token = Token(self, 'INTEGER', int(match.group(0)))
                 self._buffer = self._buffer[match.end():]
                 self.column += match.end()
                 return token

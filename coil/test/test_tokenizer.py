@@ -28,6 +28,18 @@ class TokenizerTestCase(unittest.TestCase):
         self.assertEquals(first.column, 1)
         self.assertEquals(tok.next().type, None)
 
+    def testNumbers(self):
+        tok = tokenizer.Tokenizer(["1 2.0"])
+        token = tok.next()
+        self.assertEquals(token.type, 'INTEGER')
+        self.assertEquals(token.value, 1)
+        self.assert_(isinstance(token.value, int))
+        token = tok.next()
+        self.assertEquals(token.type, 'FLOAT')
+        self.assertEquals(token.value, 2.0)
+        self.assert_(isinstance(token.value, float))
+        self.assertEquals(tok.next().type, None)
+
     def testCounters(self):
         tok = tokenizer.Tokenizer(["'string' '''foo''' '' '''''' other",
                                    "'''multi line string",
