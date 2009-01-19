@@ -2,7 +2,7 @@
 
 import re
 
-class ParseError(Exception):
+class CoilParseError(Exception):
     def __init__(self, token, reason):
         self.path = token.path
         self.line = token.line
@@ -13,17 +13,17 @@ class ParseError(Exception):
                 (self.__class__.__name__, reason,
                  self.path, self.line, self.column))
 
-class LexicalError(ParseError):
+class CoilLexicalError(CoilParseError):
     pass
 
-class UnicodeError(ParseError):
+class CoilUnicodeError(CoilParseError):
     pass
 
 class Token(object):
     """Represents a single token"""
 
-    def __init__(self, tokenizer, type=None, value=None):
-        self.type = type
+    def __init__(self, tokenizer, type_=None, value=None):
+        self.type = type_
         self.value = value
         self.path = tokenizer.path
         self.line = tokenizer.line
@@ -52,8 +52,8 @@ class Tokenizer(object):
     _STR3 = re.compile(r"'((\\.|[^\\'])*)(')")
     _STR4 = re.compile(r'"((\\.|[^\\"])*)(")')
 
-    def __init__(self, input, path=None, encoding=None):
-        self.input = input
+    def __init__(self, input_, path=None, encoding=None):
+        self.input = input_
         self.path = path
         self.line = 0
         self.column = 0
@@ -145,7 +145,8 @@ class Tokenizer(object):
                 return self._parse_string()
 
             # Unparsable!
-            raise LexicalError(self, "Unrecognized token: %s" % self._buffer)
+            raise CoilLexicalError(self, "Unrecognized token: %s" %
+                    self._buffer)
 
     def _next_line_generator(self):
         for line in self.input:
@@ -154,44 +155,44 @@ class Tokenizer(object):
             yield line
 
     def _parse_string(self):
-        def decode(buffer):
+        def decode(buf):
             # If _encoding is set all strings should 
             # be unicode instead of str
             if self._encoding:
                 try:
-                    return buffer.decode(self._encoding)
+                    return buf.decode(self._encoding)
                 except UnicodeDecodeError, ex:
-                    raise UnocideError(self, str(ex))
+                    raise CoilUnicodeError(self, str(ex))
             else:
-                return buffer
+                return buf
 
         lines = 0
-        buffer = decode(self._buffer)
+        strbuf = decode(self._buffer)
         pattern = None
 
         for pat in (self._STR1, self._STR2, self._STR3, self._STR4):
             # Find the correct string type
-            if pat.match(buffer):
+            if pat.match(strbuf):
                 pattern = pat
                 break
 
-        if not pat:
-            raise LexicalError(self, "Invalid string: %s" % buffer)
+        if not pattern:
+            raise CoilLexicalError(self, "Invalid string: %s" % strbuf)
 
         while True:
-            match = pattern.match(buffer)
+            match = pattern.match(strbuf)
             if not match:
-                raise LexicalError(self, "Invalid string: %s" % buffer)
+                raise CoilLexicalError(self, "Invalid string: %s" % strbuf)
 
             if not match.group(3):
                 try:
                     new = self._next_line()
                 except StopIteration:
                     self._done = True
-                    raise LexicalError(self, "Unterminated string")
+                    raise CoilLexicalError(self, "Unterminated string")
 
                 lines += 1
-                buffer += decode(new)
+                strbuf += decode(new)
             else:
                 # TODO: expand escape chars
                 token = Token(self, 'STRING', match.group(1))
@@ -205,7 +206,7 @@ class Tokenizer(object):
                     self.column += match.end()
 
                 # _buffer needs to be converted back to str
-                self._buffer = buffer[match.end():]
+                self._buffer = strbuf[match.end():]
                 if isinstance(self._buffer, unicode):
                     self._buffer = str(self._buffer.encode(self._encoding))
                 assert isinstance(self._buffer, str)

@@ -2,29 +2,30 @@
 
 from coil import tokenizer, struct
 
-class SyntaxError(tokenizer.ParseError):
+class CoilSyntaxError(tokenizer.CoilParseError):
     pass
 
 class Parser(object):
     """The standard coil parser"""
 
-    def __init__(self, input, path=None, encoding=None):
-        self._tokenizer = tokenizer.Tokenizer(input, path, encoding)
+    def __init__(self, input_, path=None, encoding=None):
+        self._tokenizer = tokenizer.Tokenizer(input_, path, encoding)
 
         # Create the root Struct and parse!
         self._root = struct.Struct()
         self._parse_struct_attributes(self._root)
 
     def root(self):
+        """Get the root Struct"""
         return self._root
 
     def _expect(self, token, *types):
         if token.type is None:
-            raise SyntaxError(token, "Unexpected end of input, "
+            raise CoilSyntaxError(token, "Unexpected end of input, "
                     "looking for: %s" % " ".join(types))
 
         if token.type not in types:
-            raise SyntaxError(token, "Unexpected %s: %s, looking for %s" %
+            raise CoilSyntaxError(token, "Unexpected %s: %s, looking for %s" %
                     (token.type, repr(token.value), " ".join(types)))
 
     def _next(self, *types):
@@ -70,7 +71,7 @@ class Parser(object):
 
         while self._tokenizer.peek().type == '.':
             self._next('.')
-            name = "%s.%s" (name, self._next('ATOM').value)
+            name = "%s.%s" % (name, self._next('ATOM').value)
 
         return name
 
@@ -92,7 +93,7 @@ class Parser(object):
     def _parse_list(self):
         """[ number or string ... ]"""
 
-        token.next('[')
+        self._next('[')
         new = []
 
         token = self._next(']', 'INTEGER', 'FLOAT', 'STRING')
@@ -126,7 +127,7 @@ class Parser(object):
             if next.value == "root":
                 path = "@root"
             else:
-                raise SyntaxError(token, "Unknown @%s, expected @root" %
+                raise CoilSyntaxError(token, "Unknown @%s, expected @root" %
                         next.value)
 
         while self._tokenizer.peek().type == '.':
@@ -136,4 +137,4 @@ class Parser(object):
         try:
             return container.get(path)
         except struct.KeyMissingError:
-            raise SyntaxError(token, "Path %s does not exist" % repr(path))
+            raise CoilSyntaxError(token, "Path %s does not exist" % repr(path))
