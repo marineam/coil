@@ -1,6 +1,6 @@
 """Tests for coil.struct."""
 
-from twisted.trial import unittest
+import unittest
 from coil import struct
 
 class StructTestCase(unittest.TestCase):

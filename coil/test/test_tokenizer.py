@@ -1,6 +1,6 @@
 """Tests for coil.tokenizer."""
 
-from twisted.trial import unittest
+import unittest
 from coil import tokenizer
 
 class TokenizerTestCase(unittest.TestCase):
