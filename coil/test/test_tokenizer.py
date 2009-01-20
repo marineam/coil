@@ -23,13 +23,26 @@ class TokenizerTestCase(unittest.TestCase):
         tok = tokenizer.Tokenizer(["'string'"])
         first = tok.next()
         self.assertEquals(first.type, 'STRING')
+        self.assert_(isinstance(first.value, str))
         self.assertEquals(first.value, "string")
         self.assertEquals(first.line, 1)
         self.assertEquals(first.column, 1)
         self.assertEquals(tok.next().type, None)
 
+    def testUnocide(self):
+        tok = tokenizer.Tokenizer(
+                [u"'\u3456'".encode("utf-8")],
+                encoding='utf-8')
+        first = tok.next()
+        self.assertEquals(first.type, 'STRING')
+        self.assert_(isinstance(first.value, unicode))
+        self.assertEquals(first.value, u"\u3456")
+        self.assertEquals(first.line, 1)
+        self.assertEquals(first.column, 1)
+        self.assertEquals(tok.next().type, None)
+
     def testNumbers(self):
-        tok = tokenizer.Tokenizer(["1 2.0"])
+        tok = tokenizer.Tokenizer(["1 2.0 -3 -4.0 0"])
         token = tok.next()
         self.assertEquals(token.type, 'INTEGER')
         self.assertEquals(token.value, 1)
@@ -38,6 +51,18 @@ class TokenizerTestCase(unittest.TestCase):
         self.assertEquals(token.type, 'FLOAT')
         self.assertEquals(token.value, 2.0)
         self.assert_(isinstance(token.value, float))
+        token = tok.next()
+        self.assertEquals(token.type, 'INTEGER')
+        self.assertEquals(token.value, -3)
+        self.assert_(isinstance(token.value, int))
+        token = tok.next()
+        self.assertEquals(token.type, 'FLOAT')
+        self.assertEquals(token.value, -4)
+        self.assert_(isinstance(token.value, float))
+        token = tok.next()
+        self.assertEquals(token.type, 'INTEGER')
+        self.assertEquals(token.value, 0)
+        self.assert_(isinstance(token.value, int))
         self.assertEquals(tok.next().type, None)
 
     def testCounters(self):

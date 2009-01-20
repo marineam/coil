@@ -55,18 +55,6 @@ class Parser(object):
             self._expect(token, types)
         return token
 
-    def _parse_struct(self, container=None, name=None):
-        """{ ... }"""
-
-        self._next('{')
-
-        new = Struct(container=container, name=name)
-        self._parse_struct_attributes(new)
-
-        self._next('}')
-
-        return new
-
     def _parse_struct_attributes(self, new_struct):
         """attribute..."""
 
@@ -120,11 +108,7 @@ class Parser(object):
                 raise CoilDataError(token, "Attribute added and "
                         "deleted in the same structure %s" % name)
 
-            value = self._parse_value(container, name)
-            try:
-                container.set(name, value)
-            except StructError, ex:
-                raise CoilDataError(token, ex.message)
+            self._parse_value(container, name)
 
     def _parse_name(self):
         """ATOM[.ATOM]*"""
@@ -143,14 +127,26 @@ class Parser(object):
                 'ATOM', 'INTEGER', 'FLOAT', 'STRING')
 
         if token.type == '{':
-            return self._parse_struct(container, name)
+            value = Struct()
         elif token.type == '[':
-            return self._parse_list()
+            value = self._parse_list()
         elif token.type in ('=', '@', '.', 'ATOM'):
-            return self._parse_and_follow_path(container)
+            value = self._parse_and_follow_path(container)
         elif token.type in ('INTEGER', 'FLOAT', 'STRING'):
             self._next('INTEGER', 'FLOAT', 'STRING')
-            return token.value
+            value = token.value
+
+        try:
+            container.set(name, value)
+        except StructError, ex:
+            raise CoilDataError(token, ex.message)
+
+        # Only parse the struct contents after it has been added
+        # This allows silly things like "a: { x: 1 y: ..a.x }"
+        if token.type == '{':
+            self._next('{')
+            self._parse_struct_attributes(value)
+            self._next('}')
 
     def _parse_list(self):
         """[ number or string ... ]"""

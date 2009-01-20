@@ -167,6 +167,9 @@ class Struct(object, DictMixin):
                     assert isinstance(struct, Struct)
             elif not key:
                 struct = struct.container
+                if struct is None:
+                    raise StructError(self,
+                            "reference past tree root: %s" % path)
                 assert isinstance(struct, Struct)
             else:
                 try:

@@ -2,7 +2,7 @@
 
 import os
 import unittest
-from coil import parser, tokenizer, struct
+from coil import parser, tokenizer, struct, parse_file
 
 class BasicTestCase(unittest.TestCase):
 
@@ -26,11 +26,12 @@ class BasicTestCase(unittest.TestCase):
         self.assertEquals(root['float'], 2.0)
 
     def testStruct(self):
-        root = parser.Parser(["foo: { bar: 'baz' }"]).root()
+        root = parser.Parser(["foo: { bar: 'baz' } -moo: 'cow'"]).root()
         self.assert_(isinstance(root['foo'], struct.Struct))
         self.assertEquals(root['foo']['bar'], "baz")
         self.assertEquals(root.get('foo.bar'), "baz")
         self.assertEquals(root.get('@root.foo.bar'), "baz")
+        self.assertEquals(root['-moo'], "cow")
 
     def testExtends(self):
         root = parser.Parser(["a: {x: 'x'} b: { @extends: ..a }"]).root()
@@ -65,6 +66,44 @@ class BasicTestCase(unittest.TestCase):
         root = parser.Parser(["@package: 'coil.test:simple.coil'"]).root()
         self.assertEquals(root.get('x'), "x value")
         self.assertEquals(root.get('y.z'), "z value")
+
+    def testComments(self):
+        root = parser.Parser(["y: [12 #hello\n]"]).root()
+        self.assertEquals(root.get("y"), [12])
+
+    def testSyntaxError(self):
+        for coil in (
+            "struct: {",
+            "struct: }",
+            "a: b:",
+            ":",
+            "[]",
+            "a: ~b",
+            "@x: 2",
+            "x: 12c",
+            "x: 12.c3",
+            "a: 1 x: .a",
+            "x: @root",
+            "x: ..a",
+            'x: {@package: "coil.test:nosuchfile"}',
+            # should get internal parse error
+            'x: {@package: "coil.test:test_parser.py"}',
+            'z: [{x: 2}]', # can't have struct in list
+            r'z: "lalalal \"', # string is not closed
+            'a: 1 z: [ =@root.a ]',
+            'a: {@extends: @root.b}', # b doesn't exist
+            'a: {@extends: ..b}', # b doesn't exist
+            'a: {@extends: x}',
+            'a: {@extends: .}',
+            'a: [1 2 3]]',
+            ):
+            self.assertRaises(tokenizer.CoilSyntaxError,
+                    parser.Parser, [coil])
+
+    def testOrder(self):
+        self.assertRaises(tokenizer.CoilSyntaxError,
+                parser.Parser, ["x: =y y: 'foo'"])
+        self.assertEqual(parser.Parser(["y: 'foo' x: =y"]).root()['x'], "foo")
 
 
 class ExtendsTestCase(unittest.TestCase):
@@ -115,3 +154,27 @@ class ExtendsTestCase(unittest.TestCase):
         self.assertRaises(KeyError, lambda: self.tree['D']['c'])
         self.assertEquals(self.tree['D']['e'], [ "one", 2, "omg three" ])
         self.assertEquals(len(self.tree['D']), 3)
+
+class ParseFileTestCase(unittest.TestCase):
+
+    def setUp(self):
+        self.path = os.path.dirname(__file__)
+
+    def testExample(self):
+        root = parse_file(os.path.join(self.path, "example.coil"))
+        self.assertEquals(root['x'], 1)
+        self.assertEquals(root.get('y.a'), 2)
+        self.assertEquals(root.get('y.x'), 1)
+        self.assertEquals(root.get('y.a2'), 2)
+
+    def testExample2(self):
+        root = parse_file(os.path.join(self.path, "example2.coil"))
+        self.assertEquals(root.get('sub.x'), "foo")
+        self.assertEquals(root.get('sub.y.a'), "bar")
+        # Currently broken:
+        self.assertEquals(root.get('sub.y.x'), "foo")
+        self.assertEquals(root.get('sub.y.a2'), "bar")
+
+    def testExample3(self):
+        root = parse_file(os.path.join(self.path, "example3.coil"))
+
