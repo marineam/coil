@@ -1,5 +1,8 @@
 """Coil Parser"""
 
+import os
+import sys
+
 from coil.tokenizer import Tokenizer, CoilSyntaxError
 from coil.struct import Struct, StructError
 
@@ -10,7 +13,13 @@ class Parser(object):
     """The standard coil parser"""
 
     def __init__(self, input_, path=None, encoding=None):
-        self._tokenizer = Tokenizer(input_, path, encoding)
+        if path:
+            self._path = os.path.abspath(path)
+        else:
+            self._path = None
+
+        self._encoding = encoding
+        self._tokenizer = Tokenizer(input_, self._path, encoding)
 
         # Create the root Struct and parse!
         self._root = Struct()
@@ -192,9 +201,7 @@ class Parser(object):
         except StructError, ex:
             raise CoilDataError(token, ex.message)
 
-    def _special_extends(self, container, added, deleted):
-        token = self._peek()
-        parent = self._parse_and_follow_path(container)
+    def _extend_with_struct(self, container, added, deleted, parent, token):
         if isinstance(parent, Struct):
             for key, val in parent.iteritems():
                 # Don't blindly set if if missing, it may have been
@@ -204,4 +211,71 @@ class Parser(object):
                         val = val.copy()
                     container[key] = val
         else:
-            raise CoilSyntaxError(token, "@extends doesn't refer to a struct")
+            raise CoilSyntaxError(token, "Reference must be a Struct")
+
+    def _extend_with_file(self, container, added, deleted,
+            file_path, struct_path, token):
+
+        try:
+            coil_file = open(file_path)
+        except IOError, ex:
+            raise CoilDataError(token, "Failed to open %s: %s" % (file_path,ex))
+
+        struct = self.__class__(coil_file, file_path, self.encoding).root()
+
+        if struct_path:
+            try:
+                struct = struct.get(struct_path)
+            except KeyError, ex:
+                raise CoilDataError(token, "Failed to find %s in %s" %
+                        (struct_path, file_path))
+
+        self._extend_with_struct(container, added, deleted, struct, token)
+
+    def _special_extends(self, container, added, deleted):
+        token = self._peek()
+        parent = self._parse_and_follow_path(container)
+        self._extend_with_struct(container, added, deleted, parent, token)
+
+    def _special_file(self, value):
+        token = self._next('[', 'STRING')
+
+        if token.type == '[':
+            file_path = self._next('STRING').value
+            struct_path = self._next('STRING').value
+            self._next(']')
+        else:
+            file_path = token.value
+            struct_path = ""
+
+        if self.path and not os.path.isabs(file_path):
+            file_path = os.path.join(os.path.dirname(self.path), file_path)
+
+        if not os.path.isabs(file_path):
+            raise CoilDataError("Unable to find absolute path: %s" % file_path)
+
+        self._extend_with_file(container, added, deleted,
+                file_path, struct_path, token)
+
+    def _special_package(self, container, added, deleted):
+        token = self._next('STRING')
+        try:
+            package, path = token.value.split(":", 1)
+        except ValueError:
+            CoilSyntaxError(token, '@package value must be "package:path"')
+
+        parts = package.split(".")
+        parts.append("__init__.py")
+
+        fullpath = None
+        for directory in sys.path:
+            if not isinstance(directory, basestring):
+                continue
+            if os.path.exists(os.path.join(directory, *parts)):
+                fullpath = os.path.join(directory, *(parts[:-1] + [path]))
+                break
+
+        if not fullpath:
+            raise CoilDataError(token, "Unable to find package: %s" % package)
+
+        self._extend_with_file(container, added, deleted, fullpath, "", token)
