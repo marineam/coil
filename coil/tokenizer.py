@@ -28,7 +28,7 @@ class Token(object):
 
 class Tokenizer(object):
 
-    ATOM_REGEX = r'[a-zA-Z_][\w-]*'
+    ATOM_REGEX = r'[a-zA-Z_-][\w-]*'
     ATOM = re.compile(ATOM_REGEX)
 
     FLOAT_REGEX = r'-?[0-9]+\.[0-9]+'
