@@ -70,7 +70,7 @@ class TokenizerTestCase(unittest.TestCase):
         self.assertEquals(tok.next().type, None)
 
     def testSpecialChars(self):
-        tok = tokenizer.Tokenizer(["{}[].@:"])
+        tok = tokenizer.Tokenizer(["{}[].@:~"])
         self.assertEquals(tok.next().type, '{')
         self.assertEquals(tok.next().type, '}')
         self.assertEquals(tok.next().type, '[')
@@ -78,4 +78,5 @@ class TokenizerTestCase(unittest.TestCase):
         self.assertEquals(tok.next().type, '.')
         self.assertEquals(tok.next().type, '@')
         self.assertEquals(tok.next().type, ':')
+        self.assertEquals(tok.next().type, '~')
         self.assertEquals(tok.next().type, None)
