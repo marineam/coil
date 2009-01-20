@@ -206,6 +206,12 @@ class Struct(object, DictMixin):
 
         parent[key] = value
 
+    def delete(self, path):
+        """Delete a value from any Struct in the tree"""
+
+        parent, key = self._get_parent_path(path)
+        del parent[key]
+
     def keys(self):
         """Get a ordered list of keys"""
         return list(self._order)
@@ -221,24 +227,15 @@ class Struct(object, DictMixin):
             yield key, self._values[key]
 
     def __str__(self):
-        out = ""
+        attrs = []
         for key, val in self.iteritems():
-            if not out:
-                out = "{"
-            else:
-                out += " "
             if isinstance(val, Struct):
-                out += "%s: %s" % (repr(key), str(val))
+                attrs.append("%s: %s" % (repr(key), str(val)))
             else:
-                out += "%s: %s" % (repr(key), repr(val))
-        return out+"}"
+                attrs.append("%s: %s" % (repr(key), repr(val)))
+        return "{%s}" % " ".join(attrs)
 
     def __repr__(self):
-        out = ""
-        for key, val in self.iteritems():
-            if not out:
-                out = "%s({" % self.__class__.__name__
-            else:
-                out += ", "
-            out += "%s: %s" % (repr(key), repr(val))
-        return out+"}"
+        attrs = ["%s: %s" % (repr(key), repr(val))
+                 for key, val in self.iteritems()]
+        return "%s({%s}" % (self.__class__.__name__, ", ".join(attrs))
