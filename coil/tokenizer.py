@@ -106,7 +106,7 @@ class Tokenizer(object):
                 continue
 
             # Special characters
-            for tok in ('{', '}', '[', ']', '.', '@', ':', '~'):
+            for tok in ('{', '}', '[', ']', '.', '@', ':', '~', '='):
                 if self._buffer[0] == tok:
                     token =  Token(self, tok, tok)
                     self._buffer = self._buffer[1:]

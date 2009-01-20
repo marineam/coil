@@ -3,7 +3,7 @@
 import unittest
 from coil import parser, tokenizer, struct
 
-class ParserTestCase(unittest.TestCase):
+class BasicTestCase(unittest.TestCase):
 
     def testEmpty(self):
         root = parser.Parser([""]).root()
@@ -28,12 +28,21 @@ class ParserTestCase(unittest.TestCase):
         root = parser.Parser(["foo: { bar: 'baz' }"]).root()
         self.assert_(isinstance(root['foo'], struct.Struct))
         self.assertEquals(root['foo']['bar'], "baz")
+        self.assertEquals(root.get('foo.bar'), "baz")
+        self.assertEquals(root.get('@root.foo.bar'), "baz")
 
     def testExtends(self):
         root = parser.Parser(["a: {x: 'x'} b: { @extends: ..a }"]).root()
         self.assertEquals(root['b']['x'], "x")
 
-class FullTestCase(unittest.TestCase):
+    def testRefrences(self):
+        root = parser.Parser(["a: 'a' b: a x: { c: ..a d: =..a }"]).root()
+        self.assertEquals(root['a'], 'a')
+        self.assertEquals(root['b'], 'a')
+        self.assertEquals(root.get('x.c'), 'a')
+        self.assertEquals(root.get('x.d'), 'a')
+
+class ExtendsTestCase(unittest.TestCase):
 
     def setUp(self):
         self.text = """

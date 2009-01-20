@@ -139,14 +139,14 @@ class Parser(object):
 
     def _parse_value(self, container, name):
         """path, number, or string"""
-        token = self._peek('{', '[', '@', '.', 'ATOM',
-                'INTEGER', 'FLOAT', 'STRING')
+        token = self._peek('{', '[', '=', '@', '.',
+                'ATOM', 'INTEGER', 'FLOAT', 'STRING')
 
         if token.type == '{':
             return self._parse_struct(container, name)
         elif token.type == '[':
             return self._parse_list()
-        elif token.type in ('@', '.', 'ATOM'):
+        elif token.type in ('=', '@', '.', 'ATOM'):
             return self._parse_and_follow_path(container)
         elif token.type in ('INTEGER', 'FLOAT', 'STRING'):
             self._next('INTEGER', 'FLOAT', 'STRING')
@@ -167,6 +167,10 @@ class Parser(object):
 
     def _parse_and_follow_path(self, container):
         """(...*|@root)?ATOM(.ATOM)*"""
+
+        # Eat the optional = prefix for backwards compatibility
+        if self._peek('=', '@', '.', 'ATOM').type == '=':
+            self._next()
 
         token = self._next('.', '@', 'ATOM')
         path = token.value
