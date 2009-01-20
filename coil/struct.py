@@ -209,7 +209,7 @@ class Struct(object, DictMixin):
     def delete(self, path):
         """Delete a value from any Struct in the tree"""
 
-        parent, key = self._get_parent_path(path)
+        parent, key = self._get_path_parent(path)
         del parent[key]
 
     def keys(self):
