@@ -2,7 +2,7 @@
 
 import re
 
-class CoilParseError(Exception):
+class CoilSyntaxError(Exception):
     def __init__(self, token, reason):
         self.path = token.path
         self.line = token.line
@@ -13,10 +13,7 @@ class CoilParseError(Exception):
                 (self.__class__.__name__, reason,
                  self.path, self.line, self.column))
 
-class CoilLexicalError(CoilParseError):
-    pass
-
-class CoilUnicodeError(CoilParseError):
+class CoilUnicodeError(CoilSyntaxError):
     pass
 
 class Token(object):
@@ -145,7 +142,7 @@ class Tokenizer(object):
                 return self._parse_string()
 
             # Unparsable!
-            raise CoilLexicalError(self, "Unrecognized token: %s" %
+            raise CoilSyntaxError(self, "Unrecognized token: %s" %
                     self._buffer)
 
     def _next_line_generator(self):
@@ -177,19 +174,19 @@ class Tokenizer(object):
                 break
 
         if not pattern:
-            raise CoilLexicalError(self, "Invalid string: %s" % strbuf)
+            raise CoilSyntaxError(self, "Invalid string: %s" % strbuf)
 
         while True:
             match = pattern.match(strbuf)
             if not match:
-                raise CoilLexicalError(self, "Invalid string: %s" % strbuf)
+                raise CoilSyntaxError(self, "Invalid string: %s" % strbuf)
 
             if not match.group(3):
                 try:
                     new = self._next_line()
                 except StopIteration:
                     self._done = True
-                    raise CoilLexicalError(self, "Unterminated string")
+                    raise CoilSyntaxError(self, "Unterminated string")
 
                 lines += 1
                 strbuf += decode(new)
