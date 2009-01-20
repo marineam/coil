@@ -1,5 +1,6 @@
 """Tests for coil.tokenizer."""
 
+import os
 import unittest
 from coil import parser, tokenizer, struct
 
@@ -41,6 +42,30 @@ class BasicTestCase(unittest.TestCase):
         self.assertEquals(root['b'], 'a')
         self.assertEquals(root.get('x.c'), 'a')
         self.assertEquals(root.get('x.d'), 'a')
+
+    def testFile(self):
+        path = os.path.join(os.path.dirname(__file__), "simple.coil")
+        root = parser.Parser(["@file: %s" % repr(path)]).root()
+        self.assertEquals(root.get('x'), "x value")
+        self.assertEquals(root.get('y.z'), "z value")
+
+    def testFileSub(self):
+        path = os.path.join(os.path.dirname(__file__), "simple.coil")
+        root = parser.Parser(["sub: { @file: [%s 'y']}" % repr(path)]).root()
+        self.assertEquals(root.get('sub.z'), "z value")
+
+    def testFileDelete(self):
+        path = os.path.join(os.path.dirname(__file__), "simple.coil")
+        root = parser.Parser(["sub: { @file: %s ~y.z}" % repr(path)]).root()
+        self.assertEquals(root.get('sub.x'), "x value")
+        self.assert_(root.get('sub.y', None) is not None)
+        self.assertRaises(KeyError, lambda: root.get('sub.y.z'))
+
+    def testPackage(self):
+        root = parser.Parser(["@package: 'coil.test:simple.coil'"]).root()
+        self.assertEquals(root.get('x'), "x value")
+        self.assertEquals(root.get('y.z'), "z value")
+
 
 class ExtendsTestCase(unittest.TestCase):
 

@@ -225,7 +225,7 @@ class Parser(object):
         except IOError, ex:
             raise CoilDataError(token, "Failed to open %s: %s" % (file_path,ex))
 
-        struct = self.__class__(coil_file, file_path, self.encoding).root()
+        struct = self.__class__(coil_file, file_path, self._encoding).root()
 
         if struct_path:
             try:
@@ -241,7 +241,7 @@ class Parser(object):
         parent = self._parse_and_follow_path(container)
         self._extend_with_struct(container, added, deleted, parent, token)
 
-    def _special_file(self, value):
+    def _special_file(self, container, added, deleted):
         token = self._next('[', 'STRING')
 
         if token.type == '[':
@@ -252,8 +252,8 @@ class Parser(object):
             file_path = token.value
             struct_path = ""
 
-        if self.path and not os.path.isabs(file_path):
-            file_path = os.path.join(os.path.dirname(self.path), file_path)
+        if self._path and not os.path.isabs(file_path):
+            file_path = os.path.join(os.path.dirname(self._path), file_path)
 
         if not os.path.isabs(file_path):
             raise CoilDataError("Unable to find absolute path: %s" % file_path)
