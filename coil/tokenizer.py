@@ -19,8 +19,8 @@ class CoilUnicodeError(CoilSyntaxError):
 class Token(object):
     """Represents a single token"""
 
-    def __init__(self, tokenizer, type_, value=None):
-        assert type_ in tokenizer.TYPES
+    def __init__(self, token, type_, value=None):
+        assert type_ in Tokenizer.TYPES
 
         # Turn numbers into numbers
         if type_ == 'FLOAT':
@@ -30,9 +30,9 @@ class Token(object):
 
         self.type = type_
         self.value = value
-        self.path = tokenizer.path
-        self.line = tokenizer.line
-        self.column = tokenizer.column
+        self.path = token.path
+        self.line = token.line
+        self.column = token.column
 
 class Tokenizer(object):
 
@@ -42,7 +42,7 @@ class Tokenizer(object):
 
     # Note: keys may start with - but must be followed by a letter
     KEY_REGEX = r'-?[a-zA-Z_][\w-]*'
-    PATH_REGEX = r'(@|\.+)?%s(\.%s)*' % (KEY_REGEX, KEY_REGEX)
+    PATH_REGEX = r'(@|\.\.+)?%s(\.%s)*' % (KEY_REGEX, KEY_REGEX)
 
     PATH = re.compile(PATH_REGEX)
     FLOAT = re.compile(r'-?[0-9]+\.[0-9]+')
@@ -72,6 +72,8 @@ class Tokenizer(object):
         self._next_line = self._next_line_generator().next
 
     def _expect(self, token, types):
+        """Check that token has the correct type"""
+
         assert types
         assert all([x in self.TYPES for x in types])
 
@@ -90,18 +92,17 @@ class Tokenizer(object):
         assert isinstance(token, Token)
         self._stack.append(token)
 
-    def peek(self, types=()):
+    def peek(self, *types):
         """Peek at the next token but keep it in the tokenizer"""
 
-        token = self.next(types)
+        token = self.next(*types)
         self._push(token)
         return token
 
-    def next(self, types=()):
+    def next(self, *types):
         """Read the input in search of the next token"""
 
         token = self._next()
-
         if types:
             self._expect(token, types)
         return token

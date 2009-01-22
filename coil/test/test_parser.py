@@ -1,7 +1,7 @@
 """Tests for coil.tokenizer."""
 
 import os
-import unittest
+from twisted.trial import unittest
 from coil import parser, tokenizer, struct, parse_file
 
 class BasicTestCase(unittest.TestCase):
@@ -43,6 +43,12 @@ class BasicTestCase(unittest.TestCase):
         self.assertEquals(root['b'], 'a')
         self.assertEquals(root.get('x.c'), 'a')
         self.assertEquals(root.get('x.d'), 'a')
+
+    def testDelete(self):
+        root = parser.Parser(["a: {x: 'x' y: 'y'}"
+                              "b: { @extends: ..a ~y}"]).root()
+        self.assertEquals(root['b']['x'], "x")
+        self.assertRaises(KeyError, lambda: root['b']['y'])
 
     def testFile(self):
         path = os.path.join(os.path.dirname(__file__), "simple.coil")
@@ -101,8 +107,7 @@ class BasicTestCase(unittest.TestCase):
                     parser.Parser, [coil])
 
     def testOrder(self):
-        self.assertRaises(tokenizer.CoilSyntaxError,
-                parser.Parser, ["x: =y y: 'foo'"])
+        self.assertEqual(parser.Parser(["x: =y y: 'foo'"]).root()['x'], "foo")
         self.assertEqual(parser.Parser(["y: 'foo' x: =y"]).root()['x'], "foo")
 
 
@@ -169,6 +174,7 @@ class ParseFileTestCase(unittest.TestCase):
 
     def testExample2(self):
         root = parse_file(os.path.join(self.path, "example2.coil"))
+        print root
         self.assertEquals(root.get('sub.x'), "foo")
         self.assertEquals(root.get('sub.y.a'), "bar")
         # Currently broken:

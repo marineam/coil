@@ -7,7 +7,7 @@ class TokenizerTestCase(unittest.TestCase):
 
     def testEmpty(self):
         tok = tokenizer.Tokenizer([""])
-        self.assertEquals(tok.next().type, None)
+        self.assertEquals(tok.next().type, 'EOF')
 
     def testPath(self):
         tok = tokenizer.Tokenizer(["somekey"])
@@ -17,7 +17,7 @@ class TokenizerTestCase(unittest.TestCase):
         self.assertEquals(first.value, "somekey")
         self.assertEquals(first.line, 1)
         self.assertEquals(first.column, 1)
-        self.assertEquals(tok.next().type, None)
+        self.assertEquals(tok.next().type, 'EOF')
 
     def testString(self):
         tok = tokenizer.Tokenizer(["'string'"])
@@ -27,7 +27,7 @@ class TokenizerTestCase(unittest.TestCase):
         self.assertEquals(first.value, "string")
         self.assertEquals(first.line, 1)
         self.assertEquals(first.column, 1)
-        self.assertEquals(tok.next().type, None)
+        self.assertEquals(tok.next().type, 'EOF')
 
     def testUnocide(self):
         tok = tokenizer.Tokenizer(
@@ -39,7 +39,7 @@ class TokenizerTestCase(unittest.TestCase):
         self.assertEquals(first.value, u"\u3456")
         self.assertEquals(first.line, 1)
         self.assertEquals(first.column, 1)
-        self.assertEquals(tok.next().type, None)
+        self.assertEquals(tok.next().type, 'EOF')
 
     def testNumbers(self):
         tok = tokenizer.Tokenizer(["1 2.0 -3 -4.0 0"])
@@ -63,7 +63,7 @@ class TokenizerTestCase(unittest.TestCase):
         self.assertEquals(token.type, 'INTEGER')
         self.assertEquals(token.value, 0)
         self.assert_(isinstance(token.value, int))
-        self.assertEquals(tok.next().type, None)
+        self.assertEquals(tok.next().type, 'EOF')
 
     def testCounters(self):
         tok = tokenizer.Tokenizer(["'string' '''foo''' '' '''''' other",
@@ -92,7 +92,7 @@ class TokenizerTestCase(unittest.TestCase):
         token = tok.next() # bye
         self.assertEquals(token.line, 4)
         self.assertEquals(token.column, 3)
-        self.assertEquals(tok.next().type, None)
+        self.assertEquals(tok.next().type, 'EOF')
 
     def testSpecialChars(self):
         tok = tokenizer.Tokenizer(["{}[]:~="])
@@ -103,4 +103,4 @@ class TokenizerTestCase(unittest.TestCase):
         self.assertEquals(tok.next().type, ':')
         self.assertEquals(tok.next().type, '~')
         self.assertEquals(tok.next().type, '=')
-        self.assertEquals(tok.next().type, None)
+        self.assertEquals(tok.next().type, 'EOF')

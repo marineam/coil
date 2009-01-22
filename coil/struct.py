@@ -116,7 +116,7 @@ class Struct(object, DictMixin):
             value.container = self
             value.name = key
 
-        if key not in self._order:
+        if key not in self:
             self._order.append(key)
 
         self._values[key] = value
