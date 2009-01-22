@@ -215,7 +215,7 @@ class Struct(object, DictMixin):
 
     def keys(self):
         """Get a ordered list of keys"""
-        return list(self._order)
+        return list(self)
 
     def __iter__(self):
         """Iterate over the list of keys"""
@@ -224,8 +224,8 @@ class Struct(object, DictMixin):
 
     def iteritems(self):
         """Iterate over the list of (key, value) pairs"""
-        for key in self._order:
-            yield key, self._values[key]
+        for key in self:
+            yield key, self[key]
 
     def __str__(self):
         attrs = []
