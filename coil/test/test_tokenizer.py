@@ -9,11 +9,11 @@ class TokenizerTestCase(unittest.TestCase):
         tok = tokenizer.Tokenizer([""])
         self.assertEquals(tok.next().type, None)
 
-    def testAtom(self):
+    def testPath(self):
         tok = tokenizer.Tokenizer(["somekey"])
         first = tok.next()
         self.assert_(isinstance(first, tokenizer.Token))
-        self.assertEquals(first.type, 'ATOM')
+        self.assertEquals(first.type, 'PATH')
         self.assertEquals(first.value, "somekey")
         self.assertEquals(first.line, 1)
         self.assertEquals(first.column, 1)
@@ -95,13 +95,12 @@ class TokenizerTestCase(unittest.TestCase):
         self.assertEquals(tok.next().type, None)
 
     def testSpecialChars(self):
-        tok = tokenizer.Tokenizer(["{}[].@:~"])
+        tok = tokenizer.Tokenizer(["{}[]:~="])
         self.assertEquals(tok.next().type, '{')
         self.assertEquals(tok.next().type, '}')
         self.assertEquals(tok.next().type, '[')
         self.assertEquals(tok.next().type, ']')
-        self.assertEquals(tok.next().type, '.')
-        self.assertEquals(tok.next().type, '@')
         self.assertEquals(tok.next().type, ':')
         self.assertEquals(tok.next().type, '~')
+        self.assertEquals(tok.next().type, '=')
         self.assertEquals(tok.next().type, None)

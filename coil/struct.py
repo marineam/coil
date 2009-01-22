@@ -55,10 +55,8 @@ _missing = object()
 class Struct(object, DictMixin):
     """A configuration structure."""
 
-    ATOM_REGEX = tokenizer.Tokenizer.ATOM_REGEX
-    ATOM = re.compile(r'^%s$' % ATOM_REGEX)
-    PATH_REGEX = r'^((\.\.+)|@root\.)?%s(\.%s)*$' % (ATOM_REGEX, ATOM_REGEX)
-    PATH = re.compile(PATH_REGEX)
+    KEY = re.compile(r'^%s$' % tokenizer.Tokenizer.KEY_REGEX)
+    PATH = re.compile(r'^%s$' % tokenizer.Tokenizer.PATH_REGEX)
 
     def __init__(self, base=(), container=None, name=None, recursive=True):
         """
@@ -104,7 +102,7 @@ class Struct(object, DictMixin):
 
         if not isinstance(key, basestring):
             raise KeyTypeError(self, key)
-        if not re.match(self.ATOM, key):
+        if not re.match(self.KEY, key):
             raise KeyValueError(self, key)
 
     def __contains__(self, key):

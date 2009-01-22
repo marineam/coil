@@ -29,20 +29,6 @@ class Parser(object):
         """Get the root Struct"""
         return self._root
 
-    def _expect(self, token, types):
-        if token.type is None:
-            raise CoilSyntaxError(token, "Unexpected end of input, "
-                    "looking for: %s" % " ".join(types))
-
-        if token.type not in types:
-            if token.type == token.value:
-                unexpected = repr(token.type)
-            else:
-                unexpected = "%s: %s" % (token.type, repr(token.value))
-
-            raise CoilSyntaxError(token, "Unexpected %s, looking for %s" %
-                    (unexpected, " ".join(types)))
-
     def _next(self, *types):
         token = self._tokenizer.next()
         if types:

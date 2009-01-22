@@ -20,6 +20,14 @@ class Token(object):
     """Represents a single token"""
 
     def __init__(self, tokenizer, type_=None, value=None):
+        assert type_ is None or type_ in tokenizer.TYPES
+
+        # Turn numbers into numbers
+        if type_ == 'FLOAT':
+            value = float(value)
+        if type_ == 'INTEGER':
+            value = int(value)
+
         self.type = type_
         self.value = value
         self.path = tokenizer.path
@@ -28,16 +36,17 @@ class Token(object):
 
 class Tokenizer(object):
 
-    ATOM_REGEX = r'[a-zA-Z_-][\w-]*'
-    ATOM = re.compile(ATOM_REGEX)
+    TYPES = ('{', '}', '[', ']', ':', '~', '=',
+             'PATH', 'FLOAT', 'INTEGER', 'STRING')
 
-    FLOAT_REGEX = r'-?[0-9]+\.[0-9]+'
-    FLOAT = re.compile(FLOAT_REGEX)
-    INTEGER_REGEX = r'-?[0-9]+'
-    INTEGER = re.compile(INTEGER_REGEX)
+    # Note: keys may start with - but must be followed by a letter
+    KEY_REGEX = r'-?[a-zA-Z_][\w-]*'
+    PATH_REGEX = r'(@|\.+)?%s(\.%s)*' % (KEY_REGEX, KEY_REGEX)
 
-    WHITESPACE_REGEX = r'(#.*|\s+)'
-    WHITESPACE = re.compile(WHITESPACE_REGEX)
+    PATH = re.compile(PATH_REGEX)
+    FLOAT = re.compile(r'-?[0-9]+\.[0-9]+')
+    INTEGER = re.compile(r'-?[0-9]+')
+    WHITESPACE = re.compile(r'(#.*|\s+)')
 
     # Strings are a bit tricky...
     # The terminating quotes are optional for ''' quotes because
@@ -50,52 +59,71 @@ class Tokenizer(object):
     _STR4 = re.compile(r'"((\\.|[^\\"])*)(")')
 
     def __init__(self, input_, path=None, encoding=None):
-        self.input = input_
         self.path = path
         self.line = 0
         self.column = 0
+        self._input = input_
         self._buffer = ""
         self._encoding = encoding
         self._stack = []
-        self._done = False
 
         # We iterate over the input in both next and _parse_string
         self._next_line = self._next_line_generator().next
 
-    def push(self, token):
+    def _expect(self, token, types):
+        assert types
+        assert all([x in self.TYPES for x in types])
+
+        if token.type is None:
+            raise CoilSyntaxError(token, "Unexpected end of input, "
+                    "looking for: %s" % " ".join(types))
+
+        if token.type not in types:
+            if token.type == token.value:
+                unexpected = repr(token.type)
+            else:
+                unexpected = "%s: %s" % (token.type, repr(token.value))
+
+            raise CoilSyntaxError(token, "Unexpected %s, looking for %s" %
+                    (unexpected, " ".join(types)))
+
+    def _push(self, token):
         """Push a token back into the tokenizer"""
 
         assert isinstance(token, Token)
         self._stack.append(token)
 
-    def peek(self):
+    def peek(self, types=()):
         """Peek at the next token but keep it in the tokenizer"""
 
-        token = self.next()
-        self.push(token)
+        token = self.next(types)
+        self._push(token)
         return token
 
-    def next(self):
+    def next(self, types=()):
         """Read the input in search of the next token"""
 
+        token = self._next()
+
+        if types:
+            self._expect(token, types)
+        return token
+
+    def _next(self):
+        """Only used by self.next()"""
+
+        if self._stack:
+            return self._stack.pop()
+
         while True:
-            if self._stack:
-                return self._stack.pop()
-
-            if self._done:
-                return Token(self)
-
             if not self._buffer:
                 try:
                     self._buffer = self._next_line()
                 except StopIteration:
-                    self._done = True
-                    continue
+                    return Token(self)
 
-                self.line += 1
-                self.column = 1
 
-            # It should at least have a newline
+            # Buffer should at least have a newline
             assert self._buffer
 
             # Skip over all whitespace and comments
@@ -103,52 +131,40 @@ class Tokenizer(object):
             if match:
                 self._buffer = self._buffer[match.end():]
                 self.column += match.end()
-                continue
+            else:
+                break
 
-            # Special characters
-            for tok in ('{', '}', '[', ']', '.', '@', ':', '~', '='):
-                if self._buffer[0] == tok:
-                    token =  Token(self, tok, tok)
-                    self._buffer = self._buffer[1:]
-                    self.column += 1
-                    return token
+        # Special characters
+        for tok in ('{', '}', '[', ']', ':', '~', '='):
+            if self._buffer[0] == tok:
+                token =  Token(self, tok, tok)
+                self._buffer = self._buffer[1:]
+                self.column += 1
+                return token
 
-            # Basic keys
-            match = self.ATOM.match(self._buffer)
+        # Simple tokens
+        for token_type in ('PATH', 'FLOAT', 'INTEGER'):
+            regex = getattr(self, token_type)
+            match = regex.match(self._buffer)
             if match:
-                token = Token(self, 'ATOM', match.group(0))
+                token = Token(self, token_type, match.group(0))
                 self._buffer = self._buffer[match.end():]
                 self.column += match.end()
                 return token
 
-            # Floats
-            match = self.FLOAT.match(self._buffer)
-            if match:
-                token = Token(self, 'FLOAT', float(match.group(0)))
-                self._buffer = self._buffer[match.end():]
-                self.column += match.end()
-                return token
+        # Strings are special because they may span multiple lines
+        if self._buffer[0] in ('"', "'"):
+            return self._parse_string()
 
-            # Integers
-            match = self.INTEGER.match(self._buffer)
-            if match:
-                token = Token(self, 'INTEGER', int(match.group(0)))
-                self._buffer = self._buffer[match.end():]
-                self.column += match.end()
-                return token
-
-            # Strings are special because they may span multiple lines
-            if self._buffer[0] in ('"', "'"):
-                return self._parse_string()
-
-            # Unparsable!
-            raise CoilSyntaxError(self, "Unrecognized token: %s" %
-                    self._buffer)
+        # Unknown input :-(
+        raise CoilSyntaxError(self, "Unrecognized input: %s" % self._buffer)
 
     def _next_line_generator(self):
-        for line in self.input:
+        for line in self._input:
             if not line or line[-1] != '\n':
                 line = "%s\n" % line
+            self.line += 1
+            self.column = 1
             yield line
 
     def _parse_string(self):
@@ -163,49 +179,49 @@ class Tokenizer(object):
             else:
                 return buf
 
-        lines = 0
+        token = Token(self, 'STRING')
         strbuf = decode(self._buffer)
         pattern = None
 
-        for pat in (self._STR1, self._STR2, self._STR3, self._STR4):
-            # Find the correct string type
-            if pat.match(strbuf):
-                pattern = pat
-                break
-
-        if not pattern:
-            raise CoilSyntaxError(self, "Invalid string: %s" % strbuf)
-
+        # Loop until the string is terminated
         while True:
-            match = pattern.match(strbuf)
+            if not pattern:
+                # Find the correct string type
+                for pat in (self._STR1, self._STR2, self._STR3, self._STR4):
+                    match = pat.match(strbuf)
+                    if match:
+                        pattern = pat
+                        break
+            else:
+                match = pattern.match(strbuf)
+
             if not match:
                 raise CoilSyntaxError(self, "Invalid string: %s" % strbuf)
 
             if not match.group(3):
+                # Read another line if string has no ending ''' or """
                 try:
                     new = self._next_line()
                 except StopIteration:
-                    self._done = True
                     raise CoilSyntaxError(self, "Unterminated string")
 
-                lines += 1
                 strbuf += decode(new)
             else:
                 # TODO: expand escape chars
-                token = Token(self, 'STRING', match.group(1))
-                self.line += lines
+                token.value = match.group(1)
+                break
 
-                # Fix up the column counter
-                try:
-                    col = match.group(0).rindex('\n')
-                    self.column = match.end() - col
-                except ValueError:
-                    self.column += match.end()
+        # Fix up the column counter
+        try:
+            col = match.group(0).rindex('\n')
+            self.column = match.end() - col
+        except ValueError:
+            self.column += match.end()
 
-                # _buffer needs to be converted back to str
-                self._buffer = strbuf[match.end():]
-                if isinstance(self._buffer, unicode):
-                    self._buffer = str(self._buffer.encode(self._encoding))
-                assert isinstance(self._buffer, str)
+        # _buffer needs to be converted back to str
+        self._buffer = strbuf[match.end():]
+        if isinstance(self._buffer, unicode):
+            self._buffer = str(self._buffer.encode(self._encoding))
+        assert isinstance(self._buffer, str)
 
-                return token
+        return token
