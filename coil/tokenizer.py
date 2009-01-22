@@ -19,8 +19,8 @@ class CoilUnicodeError(CoilSyntaxError):
 class Token(object):
     """Represents a single token"""
 
-    def __init__(self, tokenizer, type_=None, value=None):
-        assert type_ is None or type_ in tokenizer.TYPES
+    def __init__(self, tokenizer, type_, value=None):
+        assert type_ in tokenizer.TYPES
 
         # Turn numbers into numbers
         if type_ == 'FLOAT':
@@ -36,8 +36,9 @@ class Token(object):
 
 class Tokenizer(object):
 
+    # Note: None means end of input
     TYPES = ('{', '}', '[', ']', ':', '~', '=',
-             'PATH', 'FLOAT', 'INTEGER', 'STRING')
+             'PATH', 'FLOAT', 'INTEGER', 'STRING', 'EOF')
 
     # Note: keys may start with - but must be followed by a letter
     KEY_REGEX = r'-?[a-zA-Z_][\w-]*'
@@ -73,10 +74,6 @@ class Tokenizer(object):
     def _expect(self, token, types):
         assert types
         assert all([x in self.TYPES for x in types])
-
-        if token.type is None:
-            raise CoilSyntaxError(token, "Unexpected end of input, "
-                    "looking for: %s" % " ".join(types))
 
         if token.type not in types:
             if token.type == token.value:
@@ -120,7 +117,7 @@ class Tokenizer(object):
                 try:
                     self._buffer = self._next_line()
                 except StopIteration:
-                    return Token(self)
+                    return Token(self, 'EOF', 'EOF')
 
 
             # Buffer should at least have a newline
