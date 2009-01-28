@@ -22,6 +22,10 @@ class Token(object):
         self.line = token.line
         self.column = token.column
 
+    def __repr__(self):
+        return "<%s %s %s (%s:%s:%s)" % (self.__class__.__name__, self.type,
+                repr(self.value), self.path, self.line, self.column)
+
 class Tokenizer(object):
     """Split input into basic tokens"""
 

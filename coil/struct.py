@@ -152,7 +152,7 @@ class Struct(object, DictMixin):
             value = parent[key]
         except KeyError:
             if default == _missing:
-                raise
+                raise errors.KeyMissingError(self, path)
             else:
                 value = default
 

@@ -8,9 +8,22 @@ from coil import tokenizer, struct, errors
 class Link(tokenizer.Token):
     """A temporary symbolic link to another item"""
 
-    def __init__(self, token):
+    def __init__(self, token, container):
         assert isinstance(token, tokenizer.Token)
-        tokenizer.Token.__init__(self, token, token.type, token.value)
+        assert token.type == 'PATH'
+        assert isinstance(container, struct.Struct)
+
+        # Convert absolute links starting with @root to relative links
+        if token.value.startswith("@root"):
+            path = ""
+            while container.container:
+                container = container.container
+                path += "."
+            path += token.value[5:]
+        else:
+            path = token.value
+
+        tokenizer.Token.__init__(self, token, 'PATH', path)
 
 class StructPrototype(struct.Struct):
     """A temporary struct used for parsing only.
@@ -207,10 +220,10 @@ class Parser(object):
             # Got a reference, chomp the =, save the link
             # I only support the = for backwards compatibility
             self._tokenizer.next('=')
-            value = Link(self._tokenizer.next('PATH'))
+            value = Link(self._tokenizer.next('PATH'), container)
         elif token.type == 'PATH':
             # Got a reference, save the link
-            value = Link(self._tokenizer.next('PATH'))
+            value = Link(self._tokenizer.next('PATH'), container)
         else:
             # Plain old boring values
             self._tokenizer.next('INTEGER', 'FLOAT', 'STRING')
