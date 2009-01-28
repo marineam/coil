@@ -18,6 +18,7 @@ class Struct(object, DictMixin):
 
     KEY = re.compile(r'^%s$' % tokenizer.Tokenizer.KEY_REGEX)
     PATH = re.compile(r'^%s$' % tokenizer.Tokenizer.PATH_REGEX)
+    EXPAND = re.compile(r'\$\{(%s)\}' % tokenizer.Tokenizer.PATH_REGEX)
 
     def __init__(self, base=(), container=None, name=None, recursive=True):
         """
@@ -143,7 +144,26 @@ class Struct(object, DictMixin):
 
         return struct, split[-1]
 
-    def get(self, path, default=_missing):
+    def _expand_vars(self, orig, expand, silent):
+        def expand_one(match):
+            name = match.group(1)
+            value = None
+
+            if hasattr(expand, "get"): # expand may simply be True
+                value = expand.get(name, None)
+            if value is None:
+                value = self.get(name, None)
+
+            if value is None and not silent:
+                raise errors.KeyMissingError(self, name)
+            elif value is None:
+                return match.group(0)
+            else:
+                return value
+
+        return self.EXPAND.sub(expand_one, orig)
+
+    def get(self, path, default=_missing, expand=None, silent=False):
         """Get a value from any Struct in the tree"""
 
         parent, key = self._get_path_parent(path)
@@ -156,16 +176,18 @@ class Struct(object, DictMixin):
             else:
                 value = default
 
+        if expand is not None:
+            value = self._expand_vars(value, expand, silent)
+
         return value
 
-    def set(self, path, value, expand=_missing):
+    def set(self, path, value, expand=None, silent=False):
         """Set a value in any Struct in the tree"""
 
         parent, key = self._get_path_parent(path)
 
-        if expand != _missing:
-            # TODO
-            raise NotImplementedError("expansion not implemented")
+        if expand is not None:
+            value = self._expand_vars(value, expand, silent)
 
         parent[key] = value
 

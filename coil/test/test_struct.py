@@ -3,7 +3,7 @@
 import unittest
 from coil import struct, errors
 
-class StructTestCase(unittest.TestCase):
+class BasicTestCase(unittest.TestCase):
 
     def setUp(self):
         # Use a tuple to preserve order
@@ -68,3 +68,29 @@ class StructTestCase(unittest.TestCase):
         self.assertRaises(struct.errors.KeyValueError,
                 lambda: self.struct.get('first..second'))
 
+class ExpansionTestCase(unittest.TestCase):
+
+    def testExpandSet(self):
+        root = struct.Struct()
+        root.set("foo", "bbq")
+        root.set("bar", "omgwtf${foo}", True)
+        self.assertEquals(root.get('bar'), "omgwtfbbq")
+
+    def testExpandGet(self):
+        root = struct.Struct()
+        root.set("foo", "bbq")
+        root.set("bar", "omgwtf${foo}")
+        self.assertEquals(root.get('bar'), "omgwtf${foo}")
+        self.assertEquals(root.get('bar', expand=True), "omgwtfbbq")
+
+    def testExpandError(self):
+        root = struct.Struct()
+        self.assertRaises(KeyError, root.set, "bar", "omgwtf${foo}", True)
+        root.set("bar", "omgwtf${foo}")
+        self.assertEquals(root.get('bar'), "omgwtf${foo}")
+        self.assertRaises(KeyError, root.get, 'bar', expand=True)
+
+    def testExpandSilent(self):
+        root = struct.Struct()
+        root.set("bar", "omgwtf${foo}", True, True)
+        self.assertEquals(root.get('bar', None, True, True), "omgwtf${foo}")
