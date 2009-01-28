@@ -174,13 +174,19 @@ class ParseFileTestCase(unittest.TestCase):
 
     def testExample2(self):
         root = parse_file(os.path.join(self.path, "example2.coil"))
-        print root
         self.assertEquals(root.get('sub.x'), "foo")
         self.assertEquals(root.get('sub.y.a'), "bar")
-        # Currently broken:
         self.assertEquals(root.get('sub.y.x'), "foo")
         self.assertEquals(root.get('sub.y.a2'), "bar")
+        self.assertEquals(root.get('sub2.y.a'), 2)
+        self.assertEquals(root.get('sub2.y.x'), 1)
+        self.assertEquals(root.get('sub2.y.a2'), 2)
 
     def testExample3(self):
         root = parse_file(os.path.join(self.path, "example3.coil"))
+        self.assertEquals(root['x'], 1)
+        self.assertEquals(root.get('y.a'), 2)
+        self.assertEquals(root.get('y.x'), 1)
+        self.assertEquals(root.get('y.a2'), 2)
+        self.assertEquals(root.get('y.b'), 3)
 
