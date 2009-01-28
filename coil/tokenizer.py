@@ -23,8 +23,8 @@ class Token(object):
         self.column = token.column
 
 class Tokenizer(object):
+    """Split input into basic tokens"""
 
-    # Note: None means end of input
     TYPES = ('{', '}', '[', ']', ':', '~', '=',
              'PATH', 'FLOAT', 'INTEGER', 'STRING', 'EOF')
 
