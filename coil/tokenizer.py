@@ -53,6 +53,7 @@ class Tokenizer(object):
     _STR2 = re.compile(r'"""((\\.|[^\\"]|""?(?!"))*)(""")?')
     _STR3 = re.compile(r"'((\\.|[^\\'])*)(')")
     _STR4 = re.compile(r'"((\\.|[^\\"])*)(")')
+    _STRESC = re.compile(r'\\.')
 
     def __init__(self, input_, path=None, encoding=None):
         self.path = path
@@ -160,6 +161,27 @@ class Tokenizer(object):
             self.column = 1
             yield line
 
+    def _escape_string(self, token):
+        replace = {
+                "\\\\": "\\",
+                "\\n": "\n",
+                "\\r": "\r",
+                "\\t": "\t",
+                "\\'": "'",
+                '\\"': '"',
+                }
+
+        def do_replace(match):
+            key = str(match.group(0))
+            if key in replace:
+                return replace[key]
+            else:
+                raise errors.CoilSyntaxError(token,
+                        "Invalid escape sequence %s in string %s" %
+                        (repr(key), repr(token.value)))
+
+        token.value = self._STRESC.sub(do_replace, token.value)
+
     def _parse_string(self):
         def decode(buf):
             # If _encoding is set all strings should 
@@ -189,20 +211,23 @@ class Tokenizer(object):
                 match = pattern.match(strbuf)
 
             if not match:
-                raise errors.CoilSyntaxError(self, "Invalid string: %s" % strbuf)
+                raise errors.CoilSyntaxError(token,
+                    "Invalid string: %s" % strbuf)
 
             if not match.group(3):
                 # Read another line if string has no ending ''' or """
                 try:
                     new = self._next_line()
                 except StopIteration:
-                    raise errors.CoilSyntaxError(self, "Unterminated string")
+                    raise errors.CoilSyntaxError(token, "Unterminated string")
 
                 strbuf += decode(new)
             else:
-                # TODO: expand escape chars
                 token.value = match.group(1)
                 break
+
+        # Convert any escaped characters
+        self._escape_string(token)
 
         # Fix up the column counter
         try:
