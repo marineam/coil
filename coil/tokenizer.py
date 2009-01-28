@@ -10,11 +10,13 @@ class Token(object):
     def __init__(self, token, type_, value=None):
         assert type_ in Tokenizer.TYPES
 
-        # Turn numbers into numbers
+        # Turn numbers into numbers, True/False into bool
         if type_ == 'FLOAT':
             value = float(value)
-        if type_ == 'INTEGER':
+        elif type_ == 'INTEGER':
             value = int(value)
+        elif type_ == 'BOOLEAN':
+            value = (value == "True")
 
         self.type = type_
         self.value = value
@@ -30,7 +32,7 @@ class Tokenizer(object):
     """Split input into basic tokens"""
 
     TYPES = ('{', '}', '[', ']', ':', '~', '=',
-             'PATH', 'FLOAT', 'INTEGER', 'STRING', 'EOF')
+             'PATH', 'FLOAT', 'INTEGER', 'STRING', 'BOOLEAN', 'EOF')
 
     # Note: keys may start with - but must be followed by a letter
     KEY_REGEX = r'-?[a-zA-Z_][\w-]*'
@@ -39,6 +41,7 @@ class Tokenizer(object):
     PATH = re.compile(PATH_REGEX)
     FLOAT = re.compile(r'-?[0-9]+\.[0-9]+')
     INTEGER = re.compile(r'-?[0-9]+')
+    BOOLEAN = re.compile(r'(True|False)')
     WHITESPACE = re.compile(r'(#.*|\s+)')
 
     # Strings are a bit tricky...
@@ -133,7 +136,7 @@ class Tokenizer(object):
                 return token
 
         # Simple tokens
-        for token_type in ('PATH', 'FLOAT', 'INTEGER'):
+        for token_type in ('FLOAT', 'INTEGER', 'BOOLEAN', 'PATH'):
             regex = getattr(self, token_type)
             match = regex.match(self._buffer)
             if match:

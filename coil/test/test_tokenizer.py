@@ -65,6 +65,18 @@ class TokenizerTestCase(unittest.TestCase):
         self.assert_(isinstance(token.value, int))
         self.assertEquals(tok.next().type, 'EOF')
 
+    def testBoolean(self):
+        tok = tokenizer.Tokenizer(["True False"])
+        token = tok.next()
+        self.assertEquals(token.type, 'BOOLEAN')
+        self.assertEquals(token.value, True)
+        self.assert_(isinstance(token.value, bool))
+        token = tok.next()
+        self.assertEquals(token.type, 'BOOLEAN')
+        self.assertEquals(token.value, False)
+        self.assert_(isinstance(token.value, bool))
+        self.assertEquals(tok.next().type, 'EOF')
+
     def testCounters(self):
         tok = tokenizer.Tokenizer(["'string' '''foo''' '' '''''' other",
                                    "'''multi line string",

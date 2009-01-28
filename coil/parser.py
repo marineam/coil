@@ -206,7 +206,7 @@ class Parser(object):
         """path, number, or string"""
 
         token = self._tokenizer.peek('{', '[', '=',
-                'PATH', 'INTEGER', 'FLOAT', 'STRING')
+                'PATH', 'INTEGER', 'FLOAT', 'STRING', 'BOOLEAN')
 
         if token.type == '{':
             # Got a struct, will be added inside _parse_struct
@@ -226,7 +226,7 @@ class Parser(object):
             value = Link(self._tokenizer.next('PATH'), container)
         else:
             # Plain old boring values
-            self._tokenizer.next('INTEGER', 'FLOAT', 'STRING')
+            self._tokenizer.next('INTEGER', 'FLOAT', 'STRING', 'BOOLEAN')
             value = token.value
 
         if value is not None:
@@ -254,7 +254,7 @@ class Parser(object):
     def _parse_list(self, container, name):
         """[ number or string ... ]"""
 
-        valid = ('INTEGER', 'FLOAT', 'STRING')
+        valid = ('INTEGER', 'FLOAT', 'STRING', 'BOOLEAN')
         token = self._tokenizer.next('[')
 
         try:
