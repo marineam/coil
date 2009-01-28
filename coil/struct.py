@@ -1,6 +1,6 @@
-"""Coil Configuration Library
+"""Struct is the core object in Coil.
 
-Coil Struct objects are similar to dicts except they are intended to be used
+Struct objects are similar to dicts except they are intended to be used
 as a tree and can handle relative references between them.
 """
 
@@ -14,7 +14,7 @@ from coil import tokenizer, errors
 _missing = object()
 
 class Struct(object, DictMixin):
-    """A configuration structure."""
+    """A dict-like object for use in trees."""
 
     KEY = re.compile(r'^%s$' % tokenizer.Tokenizer.KEY_REGEX)
     PATH = re.compile(r'^%s$' % tokenizer.Tokenizer.PATH_REGEX)
@@ -22,10 +22,11 @@ class Struct(object, DictMixin):
 
     def __init__(self, base=(), container=None, name=None, recursive=True):
         """
-        @param base: A dict or Struct to initilize this one with.
-        @param container: the parent Struct if there is one.
-        @param name: The name of this Struct in container.
-        @param recursive: Convert all mapping objects in base to Structs.
+        @param base: A C{dict} or C{Struct} to initilize this one with.
+        @param container: the parent C{Struct} if there is one.
+        @param name: The name of this C{Struct} in C{container}.
+        @param recursive: Recursively convert all mapping objects in
+            C{base} to C{Struct} objects.
         """
 
         assert isinstance(container, Struct) or container is None
@@ -47,12 +48,12 @@ class Struct(object, DictMixin):
             self[key] = value
 
     def copy(self):
-        """Return a self-contained copy."""
+        """Recursively copy this C{Struct}"""
 
         return self.__class__(self)
 
     def path(self):
-        """Get the absolute path of a Struct in the tree"""
+        """Get the absolute path of this C{Struct} in the tree"""
 
         if not self.container:
             return "@root"
@@ -144,15 +145,24 @@ class Struct(object, DictMixin):
 
         return struct, split[-1]
 
-    def _expand_vars(self, orig, expand, silent):
+    def _expand_vars(self, key, orig, expand, silent):
+        """Expand all ${var} values inside a string.
+        
+        @param key: Name of item we are expanding (blocks recursion)
+        @param orig: Value of the item
+        @param expand: Extra mapping object to use for expansion values
+        @param silent: Ignore missing variables 
+            (otherwise raise KeyMissingError)
+        """
+
         def expand_one(match):
             name = match.group(1)
             value = None
 
             if hasattr(expand, "get"): # expand may simply be True
                 value = expand.get(name, None)
-            if value is None:
-                value = self.get(name, None)
+            if value is None and key != name:
+                value = self.get(name, None, expand, silent)
 
             if value is None and not silent:
                 raise errors.KeyMissingError(self, name)
@@ -164,7 +174,21 @@ class Struct(object, DictMixin):
         return self.EXPAND.sub(expand_one, orig)
 
     def get(self, path, default=_missing, expand=None, silent=False):
-        """Get a value from any Struct in the tree"""
+        """Get a value from any Struct in the tree.
+
+        @param path: key or arbitrary path to fetch.
+        @param default: return this value if item is missing.
+            Note that the behavior here differs from a C{dict}. If
+            C{default} is unspecified and missing a KeyError will
+            be raised as __getitem__ does, not return None.
+        @param expand: Set to True or a mapping object (dict or
+            Struct) to enable string variable expansion (ie ${var}
+            values are expanded). If a mapping object is given it
+            will be checked for the value before this C{Struct}.
+        @param silent: When a string variable expansion fails to
+            find a value simply leave the variable unexpanded.
+            The default behavior is to raise a L{KeyMissingError}.
+        """
 
         parent, key = self._get_path_parent(path)
 
@@ -177,41 +201,66 @@ class Struct(object, DictMixin):
                 value = default
 
         if expand is not None:
+            if not isinstance(value, basestring):
+                raise errors.CoilStructError(self,
+                        "Expansion is only allowed on strings. "
+                        "The value at %s is a %s" % (path, type(value)))
             value = self._expand_vars(value, expand, silent)
 
         return value
 
     def set(self, path, value, expand=None, silent=False):
-        """Set a value in any Struct in the tree"""
+        """Set a value in any Struct in the tree.
+
+        @param path: key or arbitrary path to set.
+        @param value: value to save.
+        @param expand: Set to True or a mapping object (dict or
+            Struct) to enable string variable expansion (ie ${var}
+            values are expanded). If a mapping object is given it
+            will be checked for the value before this C{Struct}.
+        @param silent: When a string variable expansion fails to
+            find a value simply leave the variable unexpanded.
+            The default behavior is to raise a L{KeyMissingError}.
+        """
 
         parent, key = self._get_path_parent(path)
 
         if expand is not None:
+            if not isinstance(value, basestring):
+                raise errors.CoilStructError(self,
+                        "Expansion is only allowed on strings. "
+                        "The value is a %s" % type(value))
             value = self._expand_vars(value, expand, silent)
 
         parent[key] = value
 
     def delete(self, path):
-        """Delete a value from any Struct in the tree"""
+        """Delete a value from any Struct in the tree.
+
+        @param path: key or arbitrary path to set.
+        """
 
         parent, key = self._get_path_parent(path)
         del parent[key]
 
     def keys(self):
-        """Get a ordered list of keys"""
+        """Get an ordered list of keys."""
         return list(iter(self))
 
     def attributes(self):
-        """For compatibility with Coil 0.2.2, use keys() instead!"""
+        """Alias for C{keys()}.
+
+        Only for compatibility with Coil <= 0.2.2.
+        """
         return self.keys()
 
     def __iter__(self):
-        """Iterate over the list of keys"""
+        """Iterate over the ordered list of keys."""
         for key in self._order:
             yield key
 
     def iteritems(self):
-        """Iterate over the list of (key, value) pairs"""
+        """Iterate over the ordered list of (key, value) pairs."""
         for key in self:
             yield key, self[key]
 
@@ -229,11 +278,11 @@ class Struct(object, DictMixin):
                  for key, val in self.iteritems()]
         return "%s({%s}" % (self.__class__.__name__, ", ".join(attrs))
 
-# For compatibility with Coil 0.2.2, use KeyError instead!
+#: For compatibility with Coil <= 0.2.2, use KeyError or L{KeyMissingError}
 StructAttributeError = errors.KeyMissingError
 
 class StructNode(object):
-    """For compatibility with Coil 0.2.2, use Struct instead!"""
+    """For compatibility with Coil <= 0.2.2, use L{Struct} instead."""
 
     def __init__(self, struct, container=None):
         # The container argument is now bogus,
