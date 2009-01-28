@@ -2,7 +2,7 @@
 
 import os
 from twisted.trial import unittest
-from coil import parser, tokenizer, struct, parse_file
+from coil import parser, tokenizer, struct, parse_file, errors
 
 class BasicTestCase(unittest.TestCase):
 
@@ -103,7 +103,7 @@ class BasicTestCase(unittest.TestCase):
             'a: {@extends: .}',
             'a: [1 2 3]]',
             ):
-            self.assertRaises(tokenizer.CoilSyntaxError,
+            self.assertRaises(tokenizer.errors.CoilSyntaxError,
                     parser.Parser, [coil])
 
     def testOrder(self):

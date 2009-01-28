@@ -9,46 +9,7 @@ from __future__ import generators
 import re
 from UserDict import DictMixin
 
-from coil import tokenizer
-
-class StructError(Exception):
-    """Generic error for Struct"""
-
-    def __init__(self, struct, msg):
-        self._class = struct.__class__.__name__
-        self._name = struct.path()
-        Exception.__init__(self, msg)
-
-    def __str__(self):
-        return "<%s %s>: %s" % (self._class, self._name, self.message)
-
-    def __repr__(self):
-        return "%s(<%s %s>, %s)" % (self._class, self._name, repr(self.message))
-
-class KeyMissingError(StructError, KeyError):
-    """The given key was not found"""
-
-    def __init__(self, struct, key, path=None):
-        if path:
-            msg = "The key %s (in %s) was not found" % (repr(key), repr(path))
-        else:
-            msg = "The key %s was not found" % repr(key)
-
-        StructError.__init__(self, struct, msg)
-
-class KeyTypeError(StructError, TypeError):
-    """The given key was not a string"""
-
-    def __init__(self, struct, key):
-        msg = "The key must be a string, got %s" % type(key)
-        StructError.__init__(self, struct, msg)
-
-class KeyValueError(StructError, ValueError):
-    """The given key contained invalid characters"""
-
-    def __init__(self, struct, key):
-        msg = "The key %s is invalid" % repr(key)
-        StructError.__init__(self, struct, msg)
+from coil import tokenizer, errors
 
 _missing = object()
 
@@ -101,9 +62,9 @@ class Struct(object, DictMixin):
         """Check that key doesn't contain invalid characters"""
 
         if not isinstance(key, basestring):
-            raise KeyTypeError(self, key)
+            raise errors.KeyTypeError(self, key)
         if not re.match(self.KEY, key):
-            raise KeyValueError(self, key)
+            raise errors.KeyValueError(self, key)
 
     def __contains__(self, key):
         self._validate_key(key)
@@ -127,12 +88,12 @@ class Struct(object, DictMixin):
         try:
             self._order.remove(key)
         except ValueError:
-            raise KeyMissingError(self, key)
+            raise errors.KeyMissingError(self, key)
 
         try:
             del self._values[key]
         except KeyError:
-            raise KeyMissingError(self, key)
+            raise errors.KeyMissingError(self, key)
 
     def __getitem__(self, key):
         self._validate_key(key)
@@ -140,15 +101,15 @@ class Struct(object, DictMixin):
         try:
             return self._values[key]
         except KeyError:
-            raise KeyMissingError(self, key)
+            raise errors.KeyMissingError(self, key)
 
     def _get_path_parent(self, path):
         """Returns the second to last Struct and last key in the path."""
 
         if not isinstance(path, basestring):
-            raise KeyTypeError(self, path)
+            raise errors.KeyTypeError(self, path)
         if not re.match(self.PATH, path):
-            raise KeyValueError(self, path)
+            raise errors.KeyValueError(self, path)
 
         split = path.split('.')
 
@@ -166,17 +127,18 @@ class Struct(object, DictMixin):
             elif not key:
                 struct = struct.container
                 if struct is None:
-                    raise StructError(self,
+                    raise errors.CoilStructError(self,
                             "reference past tree root: %s" % path)
                 assert isinstance(struct, Struct)
             else:
                 try:
                     struct = struct[key]
                 except KeyError:
-                    raise KeyMissingError(self, key, path)
+                    raise errors.KeyMissingError(self, key, path)
 
                 if not isinstance(struct, Struct):
-                    raise StructError(self, "key %s in path %s is not a Struct"
+                    raise errors.CoilStructError(self,
+                            "key %s in path %s is not a Struct"
                             % (repr(key), repr(path)))
 
         return struct, split[-1]

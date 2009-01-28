@@ -1,7 +1,7 @@
 """Tests for coil.struct."""
 
 import unittest
-from coil import struct
+from coil import struct, errors
 
 class StructTestCase(unittest.TestCase):
 
@@ -51,20 +51,20 @@ class StructTestCase(unittest.TestCase):
         self.assertEquals(list(struct.Struct(itemlist).iteritems()), itemlist)
 
     def testKeyMissing(self):
-        self.assertRaises(struct.KeyMissingError,
+        self.assertRaises(struct.errors.KeyMissingError,
                 lambda: self.struct['bogus'])
-        self.assertRaises(struct.KeyMissingError,
+        self.assertRaises(struct.errors.KeyMissingError,
                 lambda: self.struct.get('bad'))
 
     def testKeyType(self):
-        self.assertRaises(struct.KeyTypeError,
+        self.assertRaises(struct.errors.KeyTypeError,
                 lambda: self.struct[None])
-        self.assertRaises(struct.KeyTypeError,
+        self.assertRaises(struct.errors.KeyTypeError,
                 lambda: self.struct.get(None))
 
     def testKeyValue(self):
-        self.assertRaises(struct.KeyValueError,
+        self.assertRaises(struct.errors.KeyValueError,
                 lambda: self.struct['first#'])
-        self.assertRaises(struct.KeyValueError,
+        self.assertRaises(struct.errors.KeyValueError,
                 lambda: self.struct.get('first..second'))
 

@@ -3,13 +3,9 @@
 import os
 import sys
 
-from coil.tokenizer import Token, Tokenizer, CoilSyntaxError
-from coil.struct import Struct, StructError, KeyMissingError
+from coil import tokenizer, struct, errors
 
-class CoilDataError(CoilSyntaxError):
-    pass
-
-class StructPrototype(Struct):
+class StructPrototype(struct.Struct):
     """A temporary struct used for parsing only.
 
     This Struct tracks links and inheritance so they can be processed
@@ -19,7 +15,7 @@ class StructPrototype(Struct):
     """
 
     def __init__(self):
-        Struct.__init__(self)
+        struct.Struct.__init__(self)
         # _extends is a list of parents (set by @extends or @file)
         # If any item is not found in this Struct then the parent
         # list is searched in order.
@@ -45,28 +41,31 @@ class StructPrototype(Struct):
         if key in self._values:
             return self._values[key]
         elif key in self._deleted:
-            raise KeyMissingError(self, key)
+            raise errors.KeyMissingError(self, key)
         else:
             for parent in self._extends:
                 if key in parent:
                     return parent[key]
-            raise KeyMissingError(self, key)
+            raise errors.KeyMissingError(self, key)
 
     def __setitem__(self, key, value):
         if key in self._deleted or key in self._values:
-            raise StructError(self, "Setting/deleting '%s' twice" % repr(key))
-        Struct.__setitem__(self, key, value)
+            raise errors.CoilStructError(self,
+                    "Setting/deleting '%s' twice" % repr(key))
+        struct.Struct.__setitem__(self, key, value)
 
     def __delitem__(self, key):
         if key in self._deleted or key in self._values:
-            raise StructError(self, "Setting/deleting '%s' twice" % repr(key))
+            raise errors.CoilStructError(self,
+                    "Setting/deleting '%s' twice" % repr(key))
 
         for parent in self._extends:
             if key in parent:
                 self._deleted.append(key)
                 return
 
-        raise StructError(self, "Deleting unknown key '%s'" % repr(key))
+        raise errors.CoilStructError(self,
+                "Deleting unknown key '%s'" % repr(key))
 
     def __iter__(self):
         keys = []
@@ -91,23 +90,23 @@ class StructPrototype(Struct):
         are raised. This should be performed once parsing is complete.
         """
 
-        struct = Struct()
+        new = struct.Struct()
         for key, value in self.iteritems():
             # Recursively handle any child prototypes
-            if isinstance(value, Struct):
+            if isinstance(value, struct.Struct):
                 value = value.copy()
 
             # Resolve any links
-            if isinstance(value, Token):
+            if isinstance(value, tokenizer.Token):
                 assert value.type == 'PATH'
                 try:
                     value = self.get(value.value)
-                except StructError, ex:
-                    raise CoilDataError(value, str(ex))
+                except errors.CoilStructError, ex:
+                    raise errors.CoilDataError(value, str(ex))
 
-            struct[key] = value
+            new[key] = value
 
-        return struct
+        return new
 
 class Parser(object):
     """The standard coil parser"""
@@ -119,7 +118,7 @@ class Parser(object):
             self._path = None
 
         self._encoding = encoding
-        self._tokenizer = Tokenizer(input_, self._path, encoding)
+        self._tokenizer = tokenizer.Tokenizer(input_, self._path, encoding)
 
         # Create the root Struct and parse!
         self._prototype = StructPrototype()
@@ -154,15 +153,15 @@ class Parser(object):
 
             try:
                 container.delete(token.value)
-            except StructError, ex:
-                raise CoilDataError(token, ex.message)
+            except errors.CoilStructError, ex:
+                raise errors.CoilDataError(token, ex.message)
         else:
             self._tokenizer.next(':')
 
             if token.value[0] == '@':
                 special = getattr(self, "_special_%s" % token.value[1:], None)
                 if special is None:
-                    raise CoilSyntaxError(token,
+                    raise errors.CoilSyntaxError(token,
                             "Unknown special attribute: %s" % token.value)
                 else:
                     special(container)
@@ -200,8 +199,8 @@ class Parser(object):
         if value is not None:
             try:
                 container.set(name, value)
-            except StructError, ex:
-                raise CoilDataError(token, ex.message)
+            except errors.CoilStructError, ex:
+                raise errors.CoilDataError(token, ex.message)
 
     def _parse_struct(self, container, name):
         """{ attrbute... }"""
@@ -211,8 +210,8 @@ class Parser(object):
         try:
             new = StructPrototype()
             container.set(name, new)
-        except StructError, ex:
-            raise CoilDataError(token, ex.message)
+        except errors.CoilStructError, ex:
+            raise errors.CoilDataError(token, ex.message)
 
         while self._tokenizer.peek('~', 'PATH', '}').type != '}':
             self._parse_attribute(new)
@@ -227,8 +226,8 @@ class Parser(object):
         try:
             new = list()
             container.set(name, new)
-        except StructError, ex:
-            raise CoilDataError(token, ex.message)
+        except errors.CoilStructError, ex:
+            raise errors.CoilDataError(token, ex.message)
 
         while self._tokenizer.peek('INTEGER','FLOAT','STRING',']').type != ']':
             item = self._tokenizer.next('INTEGER', 'FLOAT', 'STRING')
@@ -243,8 +242,8 @@ class Parser(object):
 
         try:
             parent = container.get(token.value)
-        except StructError, ex:
-            raise CoilDataError(token, str(ex))
+        except errors.CoilStructError, ex:
+            raise errors.CoilDataError(token, str(ex))
 
         container.extends(parent)
 
@@ -279,20 +278,21 @@ class Parser(object):
             file_path = os.path.join(os.path.dirname(self._path), file_path)
 
         if not os.path.isabs(file_path):
-            raise CoilDataError(token,
+            raise errors.CoilDataError(token,
                     "Unable to find absolute path: %s" % file_path)
 
         try:
             self._extend_with_file(container, file_path, struct_path)
-        except (IOError, StructError), ex:
-            raise CoilDataError(token, str(ex))
+        except (IOError, errors.CoilStructError), ex:
+            raise errors.CoilDataError(token, str(ex))
 
     def _special_package(self, container):
         token = self._tokenizer.next('STRING')
         try:
             package, path = token.value.split(":", 1)
         except ValueError:
-            CoilSyntaxError(token, '@package value must be "package:path"')
+            errors.CoilSyntaxError(token,
+                    '@package value must be "package:path"')
 
         parts = package.split(".")
         parts.append("__init__.py")
@@ -306,9 +306,10 @@ class Parser(object):
                 break
 
         if not fullpath:
-            raise CoilDataError(token, "Unable to find package: %s" % package)
+            raise errors.CoilDataError(token,
+                    "Unable to find package: %s" % package)
 
         try:
             self._extend_with_file(container, fullpath, "")
-        except (IOError, StructError), ex:
-            raise CoilDataError(token, str(ex))
+        except (IOError, errors.CoilStructError), ex:
+            raise errors.CoilDataError(token, str(ex))

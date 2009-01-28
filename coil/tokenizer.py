@@ -2,19 +2,7 @@
 
 import re
 
-class CoilSyntaxError(Exception):
-    def __init__(self, token, reason):
-        self.path = token.path
-        self.line = token.line
-        self.column = token.column
-        self.reason = reason
-
-        Exception.__init__(self, "%s: %s (%s:%d:%d)" %
-                (self.__class__.__name__, reason,
-                 self.path, self.line, self.column))
-
-class CoilUnicodeError(CoilSyntaxError):
-    pass
+from coil import errors
 
 class Token(object):
     """Represents a single token"""
@@ -83,7 +71,7 @@ class Tokenizer(object):
             else:
                 unexpected = "%s: %s" % (token.type, repr(token.value))
 
-            raise CoilSyntaxError(token, "Unexpected %s, looking for %s" %
+            raise errors.CoilSyntaxError(token, "Unexpected %s, looking for %s" %
                     (unexpected, " ".join(types)))
 
     def _push(self, token):
@@ -155,7 +143,7 @@ class Tokenizer(object):
             return self._parse_string()
 
         # Unknown input :-(
-        raise CoilSyntaxError(self, "Unrecognized input: %s" % self._buffer)
+        raise errors.CoilSyntaxError(self, "Unrecognized input: %s" % self._buffer)
 
     def _next_line_generator(self):
         for line in self._input:
@@ -173,7 +161,7 @@ class Tokenizer(object):
                 try:
                     return buf.decode(self._encoding)
                 except UnicodeDecodeError, ex:
-                    raise CoilUnicodeError(self, str(ex))
+                    raise errors.CoilUnicodeError(self, str(ex))
             else:
                 return buf
 
@@ -194,14 +182,14 @@ class Tokenizer(object):
                 match = pattern.match(strbuf)
 
             if not match:
-                raise CoilSyntaxError(self, "Invalid string: %s" % strbuf)
+                raise errors.CoilSyntaxError(self, "Invalid string: %s" % strbuf)
 
             if not match.group(3):
                 # Read another line if string has no ending ''' or """
                 try:
                     new = self._next_line()
                 except StopIteration:
-                    raise CoilSyntaxError(self, "Unterminated string")
+                    raise errors.CoilSyntaxError(self, "Unterminated string")
 
                 strbuf += decode(new)
             else:
