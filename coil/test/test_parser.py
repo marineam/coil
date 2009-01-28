@@ -1,7 +1,7 @@
 """Tests for coil.tokenizer."""
 
 import os
-from twisted.trial import unittest
+import unittest
 from coil import parser, tokenizer, struct, parse_file, errors
 
 class BasicTestCase(unittest.TestCase):

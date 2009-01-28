@@ -1,7 +1,7 @@
 """Test text format."""
 
 import os
-from twisted.trial import unittest
+import unittest
 from twisted.python.util import sibpath
 from coil import text, struct
 
@@ -221,7 +221,7 @@ foo: {
         #self.assertEquals(node.sub3.a2, 2) # 'a' didn't get overriden this time
         
     def testFileSubImport(self):
-        """@file can reference a sub-struct of imported file."""
+        # @file can reference a sub-struct of imported file.
         s = text.fromFile(sibpath(__file__, "filesubimport.coil"))
         node = struct.StructNode(s)
         # 0. Top-level import:
