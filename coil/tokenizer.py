@@ -172,13 +172,12 @@ class Tokenizer(object):
                 }
 
         def do_replace(match):
-            key = str(match.group(0))
+            val = match.group(0)
+            key = str(val)
             if key in replace:
                 return replace[key]
             else:
-                raise errors.CoilSyntaxError(token,
-                        "Invalid escape sequence %s in string %s" %
-                        (repr(key), repr(token.value)))
+                return val
 
         token.value = self._STRESC.sub(do_replace, token.value)
 

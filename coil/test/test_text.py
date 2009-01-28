@@ -3,7 +3,7 @@
 import os
 from twisted.trial import unittest
 from twisted.python.util import sibpath
-from coil import text, struct, render
+from coil import text, struct
 
 
 class TextTestCase(unittest.TestCase):
@@ -15,10 +15,6 @@ class TextTestCase(unittest.TestCase):
             [r'x: "\\n"', ur"\n"],
             ['x: "' + u"\u3456".encode("utf-8") + '"', u'\u3456'],
             [r'x: "\" \ x"', u'" \ x'],
-            [r'x: "double"', u'double'],
-            [r"x: 'single'", u'single'],
-            [r"""x: '"both"'""", u'"both"'],
-            [r'''x: "'both'"''', u"'both'"]
             ):
             x = text.fromString(structStr).get("x")
             self.assertEquals(x, value)
@@ -69,7 +65,7 @@ a-number: 2
     def testAttributePath(self):
         s = '''
 struct: {
-    sub: {a: 1 c: 2 d-e: 4}
+    sub: {a: 1}
     sub.b: 2
     sub.c: 3
     sub.d-e: 5
@@ -97,8 +93,6 @@ struct: {
             'x: {@package: "coil.test:nosuchfile"}',
             'x: {@file: "%s"}' % (sibpath(__file__, "nosuchfile"),),
             'x: {@package: "coil.test:test_text.py"}', # should get internal parse error
-            'x: {@package: "coil.test:example.coil" @package: "coil.test:example.coil"}',
-            'y: {} x: {@package: "coil.test:example.coil" @extends: ..y}',
             'z: [{x: 2}]', # can't have struct in list
             r'z: "lalalal \"', # string is not closed
             'a: 1 z: [ =@root.a ]',
@@ -114,22 +108,25 @@ struct: {
             text.fromString("x: 1\n2\n")
         except text.ParseError, e:
             self.assertEquals(e.line, 2)
-            self.assertEquals(e.column, 0)
+            self.assertEquals(e.column, 1)
         else:
             raise RuntimeError
 
     def testDeleted(self):
         s = '''
-struct: {
+struct1: {
     a: {b: 1 x: 3}
     c: 2
     d: {b: 2}
+}
+struct2: {
+    @extends: ..struct1
     ~c
     ~a.b
 }
-~struct.d
+~struct2.d
 '''
-        root = text.fromString(s).get("struct")
+        root = text.fromString(s).get("struct2")
         self.assertEquals(list(root.attributes()), ["a"])
         self.assertEquals(list(root.get("a").attributes()), ["x"])
         self.assert_(not root.has_key("d"))
@@ -180,13 +177,6 @@ foo: {
         for n in ("d", "b2", "e", "f"):
             self.assert_(foo.c.has_key(n))
     
-    def testRender(self):
-        s = 'service: {__factory__: "coil.test.test_render.makeServiceA" x: 2}'
-        svc = render.renderStruct(text.fromString(s).get("service"))
-        from coil.test import test_render
-        self.assert_(isinstance(svc, test_render.ServiceA))
-        self.assertEquals(svc.x, 2)
-        
     def testStupidExtensionSemantics(self):
         s = '''
             base: {x: 1}
@@ -237,20 +227,13 @@ foo: {
         # 0. Top-level import:
         self.assertEquals(node.imp.sub.x, "default")
         self.assertEquals(node.imp.sub.y, 2)
-        # XXX TODO
-        #self.assertEquals(node.imp.sub.two.root, "mem")
         self.assertEquals(node.imp.sub.two.parentx, "default")
-        self.assertEquals(node.imp.m, "mem")
         # 1. Single level sub-struct:
         self.assertEquals(node.sub.x, "foo")
         self.assertEquals(node.sub.y, 2)
-        # XXX TODO
-        #self.assertEquals(node.sub.two.root, "mem")
         self.assertEquals(node.sub.two.parentx, "foo")
         # 2. Two level sub-struct:
         self.assertEquals(node.subsub.parentx, "bar")
-        # XXX TODO
-        #self.assertEquals(node.subsub.root, "mem")
         self.assertEquals(node.subsub.value, "hello")
     
     def testFileImportAtTopLevel(self):

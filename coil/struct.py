@@ -179,6 +179,10 @@ class Struct(object, DictMixin):
         """Get a ordered list of keys"""
         return list(iter(self))
 
+    def attributes(self):
+        """For compatibility with Coil 0.2.2, use keys() instead!"""
+        return self.keys()
+
     def __iter__(self):
         """Iterate over the list of keys"""
         for key in self._order:
@@ -202,3 +206,36 @@ class Struct(object, DictMixin):
         attrs = ["%s: %s" % (repr(key), repr(val))
                  for key, val in self.iteritems()]
         return "%s({%s}" % (self.__class__.__name__, ", ".join(attrs))
+
+# For compatibility with Coil 0.2.2, use KeyError instead!
+StructAttributeError = errors.KeyMissingError
+
+class StructNode(object):
+    """For compatibility with Coil 0.2.2, use Struct instead!"""
+
+    def __init__(self, struct, container=None):
+        # The container argument is now bogus,
+        # just make sure it matches the struct.
+        assert isinstance(struct, Struct)
+        assert container is None or container == struct.container
+        self._struct = struct
+        self._container = struct.container
+
+    def has_key(self, attr):
+        return self._struct.has_key(attr)
+
+    def get(self, attr, default=_missing):
+        val = self._struct.get(attr, default)
+        if isinstance(val, Struct):
+            val = self.__class__(val)
+        return val
+
+    def attributes(self):
+        return self._struct.keys()
+
+    def iteritems(self):
+        for item in self._struct.iteritems():
+            yield item
+
+    def __getattr__(self, attr):
+        return self.get(attr)
