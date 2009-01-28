@@ -13,17 +13,7 @@ class Link(tokenizer.Token):
         assert token.type == 'PATH'
         assert isinstance(container, struct.Struct)
 
-        # Convert absolute links starting with @root to relative links
-        if token.value.startswith("@root"):
-            path = ""
-            while container.container:
-                container = container.container
-                path += "."
-            path += token.value[5:]
-        else:
-            path = token.value
-
-        tokenizer.Token.__init__(self, token, 'PATH', path)
+        tokenizer.Token.__init__(self, token, 'PATH', token.value)
 
 class StructPrototype(struct.Struct):
     """A temporary struct used for parsing only.
@@ -34,8 +24,8 @@ class StructPrototype(struct.Struct):
     parse-time rather than run-time.
     """
 
-    def __init__(self, base=None, container=None, name=None):
-        struct.Struct.__init__(self, container=container, name=name)
+    def __init__(self, base=(), container=None, name=None):
+        struct.Struct.__init__(self, base, container, name)
 
         # Secondary items are ones that are inherited via @extends or @file
         # They must be tracked separately so we can raise errors on
@@ -45,9 +35,6 @@ class StructPrototype(struct.Struct):
         # _deleted is a list of items that exist in one of the parents
         # but have been removed from this Struct by ~foo tokens.
         self._deleted = []
-
-        if base:
-            self.extends(base)
 
     def __contains__(self, key):
         self._validate_key(key)
@@ -103,7 +90,7 @@ class StructPrototype(struct.Struct):
         for key in self._order:
             yield key
 
-    def extends(self, base):
+    def extends(self, base, relative=False):
         """Add a struct as another parent"""
 
         for key, value in base.iteritems():
@@ -112,7 +99,20 @@ class StructPrototype(struct.Struct):
 
             # Copy child Structs so that they can be edited independently
             if isinstance(value, struct.Struct):
-                value = self.__class__(value, self, key)
+                new = self.__class__(container=self, name=key)
+                new.extends(value, relative)
+                value = new
+
+            # Convert absolute to relative links if required
+            if (relative and isinstance(value, Link) and
+                    value.value.startswith("@root")):
+                path = ""
+                container = base
+                while container.container:
+                    container = container.container
+                    path += "."
+                path += value.value[5:]
+                value.value = path
 
             self._secondary_values[key] = value
             self._secondary_order.append(key)
@@ -291,7 +291,7 @@ class Parser(object):
         if struct_path:
             parent = parent.get(struct_path)
 
-        container.extends(parent)
+        container.extends(parent, True)
 
     def _special_file(self, container):
         """Handle @file"""
