@@ -171,7 +171,12 @@ class Struct(object, DictMixin):
             else:
                 return value
 
-        return self.EXPAND.sub(expand_one, orig)
+        if not isinstance(orig, basestring) and not silent:
+            raise errors.CoilStructError(self,
+                    "Expansion is only allowed on strings. "
+                    "The value is a %s" % type(orig))
+        elif isinstance(orig, basestring):
+            return self.EXPAND.sub(expand_one, orig)
 
     def get(self, path, default=_missing, expand=None, silent=False):
         """Get a value from any Struct in the tree.
@@ -200,12 +205,8 @@ class Struct(object, DictMixin):
             else:
                 value = default
 
-        if expand is not None:
-            if not isinstance(value, basestring):
-                raise errors.CoilStructError(self,
-                        "Expansion is only allowed on strings. "
-                        "The value at %s is a %s" % (path, type(value)))
-            value = self._expand_vars(value, expand, silent)
+        if expand is not None and value is not None:
+            value = parent._expand_vars(key, value, expand, silent)
 
         return value
 
@@ -226,11 +227,7 @@ class Struct(object, DictMixin):
         parent, key = self._get_path_parent(path)
 
         if expand is not None:
-            if not isinstance(value, basestring):
-                raise errors.CoilStructError(self,
-                        "Expansion is only allowed on strings. "
-                        "The value is a %s" % type(value))
-            value = self._expand_vars(value, expand, silent)
+            value = parent._expand_vars(key, value, expand, silent)
 
         parent[key] = value
 
