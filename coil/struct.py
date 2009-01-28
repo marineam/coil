@@ -152,7 +152,7 @@ class Struct(object, DictMixin):
         @param orig: Value of the item
         @param expand: Extra mapping object to use for expansion values
         @param silent: Ignore missing variables 
-            (otherwise raise KeyMissingError)
+            (otherwise raise L{KeyMissingError})
         """
 
         def expand_one(match):
@@ -184,8 +184,8 @@ class Struct(object, DictMixin):
         @param path: key or arbitrary path to fetch.
         @param default: return this value if item is missing.
             Note that the behavior here differs from a C{dict}. If
-            C{default} is unspecified and missing a KeyError will
-            be raised as __getitem__ does, not return None.
+            C{default} is unspecified and missing a L{KeyMissingError}
+            will be raised as __getitem__ does, not return C{None}.
         @param expand: Set to True or a mapping object (dict or
             Struct) to enable string variable expansion (ie ${var}
             values are expanded). If a mapping object is given it
