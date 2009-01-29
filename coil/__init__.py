@@ -176,8 +176,9 @@ API Overview
     >>> conf['sub']['y'] # inherited from x and added 'b'
     Struct({'a': 2, 'b': 3})
 
-  Also, using L{Struct.get} and L{Struct.set} we can access and items based
-  on absolute and relative paths as we can in the text format:
+  Also, using L{get<struct.Struct.get>} and L{set<struct.Struct.set>}
+  we can access and items based on absolute and relative paths as we
+  can in the text format:
 
     >>> conf.get("x.z")
     'hello'
