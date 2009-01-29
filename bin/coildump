@@ -1,18 +1,17 @@
 #!/usr/bin/env python
 
 import sys
-from coil import text
+import coil
 
 def main():
     if len(sys.argv) != 2:
         print >>sys.stderr, "Usage: coildump <path>"
         sys.exit(2)
     try:
-        sys.stdout.write(repr(text.fromFile(sys.argv[1])))
-    except text.ParseError, e:
-        sys.stderr.write("%s:%d:%d: %s\n" % (e.filePath, e.line, e.column, e.reason))
+        print coil.parse_file(sys.argv[1])
+    except Exception, ex:
+        sys.stderr.write("%s\n" % ex)
         sys.exit(1)
-
 
 if __name__ == '__main__':
     main()
