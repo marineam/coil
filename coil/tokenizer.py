@@ -8,6 +8,13 @@ class Token(object):
     """Represents a single token"""
 
     def __init__(self, token, type_, value=None):
+        """
+        @param token: The L{Tokenizer} or another C{Token}.
+            Used to get the current file and position in the input.
+        @param type_: A string defining the type of token.
+            Must be one of the types listed in L{Tokenizer.TYPES}.
+        @param value: The string value of this token.
+        """
         assert type_ in Tokenizer.TYPES
 
         # Turn numbers into numbers, True/False into bool
@@ -31,6 +38,7 @@ class Token(object):
 class Tokenizer(object):
     """Split input into basic tokens"""
 
+    #: Valid Token types
     TYPES = ('{', '}', '[', ']', ':', '~', '=',
              'PATH', 'FLOAT', 'INTEGER', 'STRING', 'BOOLEAN', 'EOF')
 
@@ -56,6 +64,14 @@ class Tokenizer(object):
     _STRESC = re.compile(r'\\.')
 
     def __init__(self, input_, path=None, encoding=None):
+        """
+        @param input_: An iterator over lines of input.
+            Typically a C{file} object or list of strings.
+        @param path: Path to input file, used for errors.
+        @param encoding: Read strings using the given encoding. All
+            string values will be C{unicode} objects rather than C{str}.
+        """
+
         self.path = path
         self.line = 0
         self.column = 0

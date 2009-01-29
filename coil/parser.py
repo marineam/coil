@@ -9,6 +9,10 @@ class Link(tokenizer.Token):
     """A temporary symbolic link to another item"""
 
     def __init__(self, token, container):
+        """
+        @param token: The original Token defining the link path.
+        @param container: The parent L{Struct} object.
+        """
         assert isinstance(token, tokenizer.Token)
         assert token.type == 'PATH'
         assert isinstance(container, struct.Struct)
@@ -91,7 +95,12 @@ class StructPrototype(struct.Struct):
             yield key
 
     def extends(self, base, relative=False):
-        """Add a struct as another parent"""
+        """Add a struct as another parent.
+
+        @param base: A Struct or dict to extend.
+        @param relative: Convert @root links to relative links.
+            Used when extending a Struct from another file.
+        """
 
         for key, value in base.iteritems():
             if key in self or key in self._deleted:
@@ -146,6 +155,14 @@ class Parser(object):
     """The standard coil parser"""
 
     def __init__(self, input_, path=None, encoding=None):
+        """
+        @param input_: An iterator over lines of input.
+            Typically a C{file} object or list of strings.
+        @param path: Path to input file, used for errors and @file imports.
+        @param encoding: Read strings using the given encoding. All
+            string values will be C{unicode} objects rather than C{str}.
+        """
+
         if path:
             self._path = os.path.abspath(path)
         else:
