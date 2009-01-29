@@ -273,7 +273,7 @@ class Struct(object, DictMixin):
     def __repr__(self):
         attrs = ["%s: %s" % (repr(key), repr(val))
                  for key, val in self.iteritems()]
-        return "%s({%s}" % (self.__class__.__name__, ", ".join(attrs))
+        return "%s({%s})" % (self.__class__.__name__, ", ".join(attrs))
 
 #: For compatibility with Coil <= 0.2.2, use KeyError or L{KeyMissingError}
 StructAttributeError = errors.KeyMissingError
