@@ -1,0 +1,30 @@
+Version 0.3.0
+=============
+
+  Changes since 0.2.2:
+
+  - All inheritance, links, and string variable expansions are performed
+    immediately after parsing, ensuring that broken links and other
+    errors are reported as soon as possible. String variable expansion
+    may also happen at run time if desired.
+
+  - Struct now features a complete dict-like interface and understands
+    containers, removing the need for StructNode. The old StructNode
+    class is still provided as a simple wrapper around Struct for
+    backwards compatibility.
+
+  - Support for variable expansion within strings, for example: "${foo}"
+    All relative and absolute (@root) paths are supported. This is a
+    change from previous coil extensions which were more limited,
+    requiring programs to change the root rather than simply allowing
+    parent references.
+
+  - Easily convert between dict and Struct objects.
+
+  - Struct objects may be modified at run time just like a normal dict.
+
+  - Struct's get and set methods may reference any relative or absolute
+    path in the tree.
+
+  - More exception types with clearer error messages to ease
+    troubleshooting. This is a work in progress.
