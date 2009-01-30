@@ -68,6 +68,9 @@ class BasicTestCase(unittest.TestCase):
         self.assertRaises(struct.errors.KeyValueError,
                 lambda: self.struct.get('first..second'))
 
+    def testDict(self):
+        self.assertEquals(self.struct['first'].dict(), dict(self.data[0][1]))
+
 class ExpansionTestCase(unittest.TestCase):
 
     def testExpandSet(self):
