@@ -5,6 +5,7 @@ class CoilStructError(Exception):
     def __init__(self, struct, msg):
         self._class = struct.__class__.__name__
         self._name = struct.path()
+        self.message = msg
         Exception.__init__(self, msg)
 
     def __str__(self):

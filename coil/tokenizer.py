@@ -87,7 +87,8 @@ class Tokenizer(object):
         """Check that token has the correct type"""
 
         assert types
-        assert all([x in self.TYPES for x in types])
+        for x in types:
+            assert x in self.TYPES
 
         if token.type not in types:
             if token.type == token.value:
