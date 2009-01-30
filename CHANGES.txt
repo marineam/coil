@@ -8,6 +8,11 @@ Version 0.3.0
     errors are reported as soon as possible. String variable expansion
     may also happen at run time if desired.
 
+  - The text format now allows a struct to inherit from any number of
+    other structs. This allows large configurations to be broken into
+    separate files and then merged back together with a set of @file
+    directives.
+
   - Struct now features a complete dict-like interface and understands
     containers, removing the need for StructNode. The old StructNode
     class is still provided as a simple wrapper around Struct for
