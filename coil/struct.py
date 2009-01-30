@@ -52,6 +52,17 @@ class Struct(object, DictMixin):
 
         return self.__class__(self)
 
+    def dict(self):
+        """Recursively copy this C{Struct} into normal dict objects"""
+
+        new = {}
+        for key, value in self.iteritems():
+            if value and isinstance(value, Struct):
+                value = value.dict()
+            new[key] = value
+
+        return new
+
     def path(self):
         """Get the absolute path of this C{Struct} in the tree"""
 
@@ -193,6 +204,8 @@ class Struct(object, DictMixin):
         @param silent: When a string variable expansion fails to
             find a value simply leave the variable unexpanded.
             The default behavior is to raise a L{KeyMissingError}.
+
+        @return: The fetched item or the value of C{default}.
         """
 
         parent, key = self._get_path_parent(path)

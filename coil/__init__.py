@@ -199,7 +199,7 @@ from coil.parser import Parser
 def parse_file(file_name):
     """Open and parse a coil file.
 
-    Returns the root Struct.
+    @return: The root L{Struct}
     """
     coil = open(file_name)
     return Parser(coil, file_name).root()
@@ -207,7 +207,7 @@ def parse_file(file_name):
 def parse(string):
     """Parse a coil string.
 
-    Returns the root Struct.
+    @return: The root L{Struct}
     """
     return Parser(string.splitlines()).root()
 
