@@ -127,6 +127,18 @@ Text Format
           ~x  # sub now has no attribute "x"
          }
 
+  References are also allowed within strings by using ${name}. For example::
+
+    foo: "zomg"
+    bar: "${foo}bbq"
+    sub: { x: "foo is ${..foo}" y: "foo is ${@root.foo}" }
+
+  expands out to be::
+
+    foo: "zomg"
+    bar: "zomgbbq"
+    sub: { x: "foo is zomg" y: "foo is zomg" }
+
 API Overview
 ============
 
