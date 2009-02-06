@@ -1,3 +1,7 @@
+# Copyright (c) 2005-2006 Itamar Shtull-Trauring.
+# Copyright (c) 2008-2009 ITA Software, Inc.
+# See LICENSE.txt for details.
+
 """Struct is the core object in Coil.
 
 Struct objects are similar to dicts except they are intended to be used

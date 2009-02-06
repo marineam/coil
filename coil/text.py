@@ -1,3 +1,7 @@
+# Copyright (c) 2005-2006 Itamar Shtull-Trauring.
+# Copyright (c) 2008-2009 ITA Software, Inc.
+# See LICENSE.txt for details.
+
 """Compatibility with <= 0.2.2, do not use in new code!"""
 
 from coil import parser, parse_file, errors

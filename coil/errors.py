@@ -1,3 +1,5 @@
+# Copyright (c) 2008-2009 ITA Software, Inc.
+# See LICENSE.txt for details.
 
 class CoilStructError(Exception):
     """Generic error for Struct"""

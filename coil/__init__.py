@@ -1,3 +1,7 @@
+# Copyright (c) 2005-2006 Itamar Shtull-Trauring.
+# Copyright (c) 2008-2009 ITA Software, Inc.
+# See LICENSE.txt for details.
+
 """Coil: A Configuration Library.
 
 Introduction
@@ -10,32 +14,17 @@ Introduction
 Design Goals
 ============
 
-  Below is a list of goals from GOALS.txt that needs to be updated....
+  General design/implementation goals, some have been met, others are
+  still in progress.
 
-    - Support non-Twisted reactor driven Python programs
+    - Support Twisted and non-Twisted reactor driven Python programs.
 
-    - Scalable to complex configurations
-
-    - Scalable to many machines; for example, 50 machines that have almost
-      same config with only minor changes to each should be easy to do.
+    - Scalable to complex configurations, easily avoiding duplication.
 
     - Orthogonal to code; code should not be required to know about the
-      config system used, it should be regular Python or Twisted code
+      config system used, it should be regular Python or Twisted code.
 
-    - Encourage design of code to be easily extendable and pluggable and
-      not tightly coupled
-
-    - Encourage creation of pre-made configuration libraries
-
-    - Minimal boilerplate
-
-    - Python object representation for automatic code generation as well
-      as human editable text format which is not code (James pointed out
-      how this is helpful, e.g. binding to pre-1024 ports, then changing
-      uid, without actually importing any user code)
-
-    - Maybe? Changeable at runtime; if not in first revision, should be
-    kept in mind for further enhancement
+    - Minimal boilerplate.
 
 Text Format
 ===========

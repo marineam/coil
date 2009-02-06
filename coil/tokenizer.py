@@ -1,3 +1,6 @@
+# Copyright (c) 2008-2009 ITA Software, Inc.
+# See LICENSE.txt for details.
+
 """Break the input into a sequence of small tokens."""
 
 import re
