@@ -139,6 +139,9 @@ Text Format
     bar: "zomgbbq"
     sub: { x: "foo is zomg" y: "foo is zomg" }
 
+  Emacs users may be interested in the coil mode provided by
+  misc/coil.el in the coil distribution tarball.
+
 API Overview
 ============
 

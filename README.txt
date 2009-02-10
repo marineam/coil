@@ -130,6 +130,9 @@ Text Format
     bar: "zomgbbq"
     sub: { x: "foo is zomg" y: "foo is zomg" }
 
+  Emacs users may be interested in the coil mode provided by 
+  misc/coil.el in the coil distribution tarball.
+
 API Overview
 ============
   The core of the Coil API is the Struct object. It is a dict-like 
