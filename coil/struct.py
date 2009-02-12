@@ -17,6 +17,28 @@ from coil import tokenizer, errors
 
 _missing = object()
 
+class Link(object):
+    """A temporary symbolic link to another item"""
+
+    def __init__(self, path, container):
+        """
+        @param path: A path or the original Token defining the path.
+        @type path: L{tokenizer.Token} or str
+        @param container: The parent L{Struct} object.
+        @type container: L{Struct}
+        """
+
+        assert isinstance(container, Struct)
+
+        if isinstance(path, tokenizer.Token):
+            assert path.type == 'PATH'
+            self.path = path.value
+            self.token = path
+        else:
+            assert isinstance(token, basestring)
+            self.path = path
+            self.token = None
+
 class Struct(object, DictMixin):
     """A dict-like object for use in trees."""
 
@@ -92,18 +114,20 @@ class Struct(object, DictMixin):
 
         if not isinstance(path, basestring):
             raise errors.KeyTypeError(self, path)
-        if not re.match(self.PATH, path):
-            raise errors.KeyValueError(self, path)
 
         split = path.split('.')
+        lastkey = split.pop()
+        struct = self
+
+        if not re.match(self.KEY, lastkey) or not re.match(self.PATH, path):
+            raise errors.KeyValueError(self, path)
 
         # Relative path's start with .. which adds one extra blank string 
-        if not split[0]:
+        if split and not split[0]:
             del split[0]
 
         # Walk the path if there is one
-        struct = self
-        for key in split[:-1]:
+        for key in split:
             if key == '@root':
                 while struct.container:
                     struct = struct.container
@@ -125,12 +149,12 @@ class Struct(object, DictMixin):
                             "key %s in path %s is not a Struct"
                             % (repr(key), repr(path)))
 
-        return struct, split[-1]
+        return struct, lastkey
 
-    def _expand_vars(self, key, orig, expand, silent):
-        """Expand all ${var} values inside a string.
+    def _expand_item(self, key, orig, expand, silent):
+        """Expand Links and all ${var} values inside a string.
         
-        @param key: Name of item we are expanding (blocks recursion)
+        @param key: Name of item we are expanding
         @param orig: Value of the item
         @param expand: Extra mapping object to use for expansion values
             if expand is None or False then this function is a no-op.
@@ -138,13 +162,18 @@ class Struct(object, DictMixin):
             (otherwise raise L{KeyMissingError})
         """
 
+        # TODO: catch all circular references!
+
         def expand_one(match):
             name = match.group(1)
 
-            if expand is not True and name in expand:
+            if name == key:
+                raise errors.CoilStructError(self,
+                        "A path inside %s is itself" % name)
+            elif expand is not True and name in expand:
                 value = expand[name]
             elif name in self:
-                value = self[name]
+                value = self.get(name, expand=expand, silent=silent)
             elif silent:
                 value = match.group(0)
             else:
@@ -152,20 +181,31 @@ class Struct(object, DictMixin):
 
             if not isinstance(value, basestring):
                 raise errors.CoilStructError(self,
-                        "Attempted to expand %s of type %s inside a string!"
-                        % (name, type(value)))
+                        "Attempted to expand %s of type %s in item %s"
+                        % (name, type(value), key))
             else:
                 return value
 
         if expand is None or expand is False:
             return orig
 
-        if not isinstance(orig, basestring):
-            raise errors.CoilStructError(self,
-                    "Attempted expansion on %s of type %s, "
-                    "only strings are allowed." % (key, type(orig)))
+        if isinstance(orig, Link):
+            if key == orig.path:
+                raise errors.CoilStructError(self,
+                        "Item %s is a link that points to itself" % key)
+            try:
+                value = self.get(orig.path, expand=expand, silent=silent)
+            except KeyError, ex:
+                if expand is not True and value.path in expand:
+                    value = expand[orig.path]
+                elif not silent:
+                    raise
+        elif isinstance(orig, basestring):
+            value = self.EXPAND.sub(expand_one, orig)
         else:
-            return self.EXPAND.sub(expand_one, orig)
+            value = orig
+
+        return value
 
     def get(self, path, default=_missing, expand=False, silent=False):
         """Get a value from any Struct in the tree.
@@ -197,7 +237,7 @@ class Struct(object, DictMixin):
                 else:
                     value = default
 
-            value = self._expand_vars(key, value, expand, silent)
+            value = self._expand_item(key, value, expand, silent)
         else:
             value = parent.get(key, default, expand, silent)
 
@@ -223,7 +263,7 @@ class Struct(object, DictMixin):
             if not re.match(self.KEY, key):
                 raise errors.KeyValueError(self, key)
 
-            value = self._expand_vars(key, value, expand, silent)
+            value = self._expand_item(key, value, expand, silent)
 
             if isinstance(value, Struct) and not value.container:
                 value.container = self
@@ -280,6 +320,19 @@ class Struct(object, DictMixin):
         """Iterate over the ordered list of (key, value) pairs."""
         for key in self:
             yield key, self[key]
+
+    def expand(self, silent=False, recursive=False):
+        """Expand all Links and string variable substitutions.
+
+        This is useful when disabling expansion during parsing,
+        adding some extra values to the tree, then expanding.
+        """
+
+        for key, value in self.iteritems():
+            if recursive and isinstance(value, Struct):
+                value.expand(silent, True)
+            else:
+                self.set(key, value, True, silent)
 
     def __str__(self):
         attrs = []

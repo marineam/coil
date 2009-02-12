@@ -8,20 +8,6 @@ import sys
 
 from coil import tokenizer, struct, errors
 
-class Link(tokenizer.Token):
-    """A temporary symbolic link to another item"""
-
-    def __init__(self, token, container):
-        """
-        @param token: The original Token defining the link path.
-        @param container: The parent L{Struct} object.
-        """
-        assert isinstance(token, tokenizer.Token)
-        assert token.type == 'PATH'
-        assert isinstance(container, struct.Struct)
-
-        tokenizer.Token.__init__(self, token, 'PATH', token.value)
-
 _missing = object()
 
 class StructPrototype(struct.Struct):
@@ -98,7 +84,7 @@ class StructPrototype(struct.Struct):
                 value = self._secondary_values.get(key, _missing)
 
                 if value is not _missing:
-                    return self._expand_vars(key, value, expand, silent)
+                    return self._expand_item(key, value, expand, silent)
                 elif default is not _missing:
                     return default
                 else:
@@ -131,54 +117,31 @@ class StructPrototype(struct.Struct):
                 value = new
 
             # Convert absolute to relative links if required
-            if (relative and isinstance(value, Link) and
-                    value.value.startswith("@root")):
+            if (relative and isinstance(value, struct.Link) and
+                    value.path.startswith("@root")):
                 path = ""
                 container = base
                 while container.container:
                     container = container.container
                     path += "."
-                path += value.value[5:]
-                value.value = path
+                path += value.path[5:]
+                value.path = path
 
             self._secondary_values[key] = value
             self._secondary_order.append(key)
 
-    def copy(self):
-        """Convert this prototype into a normal Struct.
-        
-        All links and inheritance rules are resolved and any errors
-        are raised. This should be performed once parsing is complete.
-        """
-
-        new = struct.Struct()
-        for key, value in self.iteritems():
-            # Recursively handle any child prototypes
-            if isinstance(value, struct.Struct):
-                value = value.copy()
-
-            # Resolve any links
-            if isinstance(value, Link):
-                assert value.type == 'PATH'
-                try:
-                    value = self.get(value.value)
-                except errors.CoilStructError, ex:
-                    raise errors.CoilDataError(value, str(ex))
-
-            new[key] = value
-
-        return new
 
 class Parser(object):
     """The standard coil parser"""
 
-    def __init__(self, input_, path=None, encoding=None):
+    def __init__(self, input_, path=None, encoding=None, silent=False):
         """
         @param input_: An iterator over lines of input.
             Typically a C{file} object or list of strings.
         @param path: Path to input file, used for errors and @file imports.
         @param encoding: Read strings using the given encoding. All
             string values will be C{unicode} objects rather than C{str}.
+        @param silent: Ignore any errors while attempting to follow links.
         """
 
         if path:
@@ -196,7 +159,8 @@ class Parser(object):
             self._parse_attribute(self._prototype)
 
         self._tokenizer.next('EOF')
-        self._root = self._prototype.copy()
+        self._root = struct.Struct(self._prototype)
+        self._root.expand(silent, True)
 
     def root(self):
         """Get the root Struct"""
@@ -255,10 +219,10 @@ class Parser(object):
             # Got a reference, chomp the =, save the link
             # I only support the = for backwards compatibility
             self._tokenizer.next('=')
-            value = Link(self._tokenizer.next('PATH'), container)
+            value = struct.Link(self._tokenizer.next('PATH'), container)
         elif token.type == 'PATH':
             # Got a reference, save the link
-            value = Link(self._tokenizer.next('PATH'), container)
+            value = struct.Link(self._tokenizer.next('PATH'), container)
         else:
             # Plain old boring values
             self._tokenizer.next('INTEGER', 'FLOAT', 'STRING', 'BOOLEAN')
