@@ -1,5 +1,11 @@
-Version 0.3.0
-=============
+Version 0.3.1 (in progress)
+===========================
+
+  - Change Struct.__getattr__ and friends to behave exactly like
+    Struct.get, allowing access to arbitrary paths.
+
+Version 0.3.0 (2009-02-10)
+==========================
 
   Changes since 0.2.2:
 

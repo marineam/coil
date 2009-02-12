@@ -171,10 +171,10 @@ API Overview
     >>> conf['sub']['y'] # inherited from x and added 'b'
     Struct({'a': 2, 'b': 3})
 
-  Also, using get and set we can access and items based on absolute and
-  relative paths as we can in the text format:
+  Also, we can access and items based on absolute and relative paths as
+  we can in the text format:
 
-    >>> conf.get("x.z")
+    >>> conf['x.z']
     'hello'
     >>> conf.get("@root.x.z")
     'hello'
