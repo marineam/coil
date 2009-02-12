@@ -75,50 +75,17 @@ class Struct(object, DictMixin):
         else:
             return "%s.%s" % (self.container.path(), self.name)
 
-    def _validate_key(self, key):
-        """Check that key doesn't contain invalid characters"""
-
-        if not isinstance(key, basestring):
-            raise errors.KeyTypeError(self, key)
-        if not re.match(self.KEY, key):
-            raise errors.KeyValueError(self, key)
-
     def __contains__(self, key):
-        self._validate_key(key)
         return key in self._values
 
     def __setitem__(self, key, value):
-        self._validate_key(key)
-
-        if isinstance(value, Struct) and not value.container:
-            value.container = self
-            value.name = key
-
-        if key not in self:
-            self._order.append(key)
-
-        self._values[key] = value
+        self.set(key, value)
 
     def __delitem__(self, key):
-        self._validate_key(key)
-
-        try:
-            self._order.remove(key)
-        except ValueError:
-            raise errors.KeyMissingError(self, key)
-
-        try:
-            del self._values[key]
-        except KeyError:
-            raise errors.KeyMissingError(self, key)
+        self.delete(key)
 
     def __getitem__(self, key):
-        self._validate_key(key)
-
-        try:
-            return self._values[key]
-        except KeyError:
-            raise errors.KeyMissingError(self, key)
+        return self.get(key)
 
     def _get_path_parent(self, path):
         """Returns the second to last Struct and last key in the path."""
@@ -166,34 +133,41 @@ class Struct(object, DictMixin):
         @param key: Name of item we are expanding (blocks recursion)
         @param orig: Value of the item
         @param expand: Extra mapping object to use for expansion values
+            if expand is None or False then this function is a no-op.
         @param silent: Ignore missing variables 
             (otherwise raise L{KeyMissingError})
         """
 
         def expand_one(match):
             name = match.group(1)
-            value = None
 
-            if hasattr(expand, "get"): # expand may simply be True
-                value = expand.get(name, None)
-            if value is None and key != name:
-                value = self.get(name, None, expand, silent)
-
-            if value is None and not silent:
+            if expand is not True and name in expand:
+                value = expand[name]
+            elif name in self:
+                value = self[name]
+            elif silent:
+                value = match.group(0)
+            else:
                 raise errors.KeyMissingError(self, name)
-            elif value is None:
-                return match.group(0)
+
+            if not isinstance(value, basestring):
+                raise errors.CoilStructError(self,
+                        "Attempted to expand %s of type %s inside a string!"
+                        % (name, type(value)))
             else:
                 return value
 
-        if not isinstance(orig, basestring) and not silent:
+        if expand is None or expand is False:
+            return orig
+
+        if not isinstance(orig, basestring):
             raise errors.CoilStructError(self,
-                    "Expansion is only allowed on strings. "
-                    "The value is a %s" % type(orig))
-        elif isinstance(orig, basestring):
+                    "Attempted expansion on %s of type %s, "
+                    "only strings are allowed." % (key, type(orig)))
+        else:
             return self.EXPAND.sub(expand_one, orig)
 
-    def get(self, path, default=_missing, expand=None, silent=False):
+    def get(self, path, default=_missing, expand=False, silent=False):
         """Get a value from any Struct in the tree.
 
         @param path: key or arbitrary path to fetch.
@@ -214,16 +188,18 @@ class Struct(object, DictMixin):
 
         parent, key = self._get_path_parent(path)
 
-        try:
-            value = parent[key]
-        except KeyError:
-            if default == _missing:
-                raise errors.KeyMissingError(self, path)
-            else:
-                value = default
+        if parent is self:
+            try:
+                value = self._values[key]
+            except KeyError:
+                if default == _missing:
+                    raise errors.KeyMissingError(self, key)
+                else:
+                    value = default
 
-        if expand is not None and value is not None:
-            value = parent._expand_vars(key, value, expand, silent)
+            value = self._expand_vars(key, value, expand, silent)
+        else:
+            value = parent.get(key, default, expand, silent)
 
         return value
 
@@ -243,10 +219,22 @@ class Struct(object, DictMixin):
 
         parent, key = self._get_path_parent(path)
 
-        if expand is not None:
-            value = parent._expand_vars(key, value, expand, silent)
+        if parent is self:
+            if not re.match(self.KEY, key):
+                raise errors.KeyValueError(self, key)
 
-        parent[key] = value
+            value = self._expand_vars(key, value, expand, silent)
+
+            if isinstance(value, Struct) and not value.container:
+                value.container = self
+                value.name = key
+
+            if key not in self:
+                self._order.append(key)
+
+            self._values[key] = value
+        else:
+            parent.set(key, value, expand, silent)
 
     def delete(self, path):
         """Delete a value from any Struct in the tree.
@@ -255,7 +243,22 @@ class Struct(object, DictMixin):
         """
 
         parent, key = self._get_path_parent(path)
-        del parent[key]
+
+        if parent is self:
+            if not re.match(self.KEY, key):
+                raise errors.KeyValueError(self, key)
+
+            try:
+                self._order.remove(key)
+            except ValueError:
+                raise errors.KeyMissingError(self, key)
+
+            try:
+                del self._values[key]
+            except KeyError:
+                raise errors.KeyMissingError(self, key)
+        else:
+            parent.delete(key)
 
     def keys(self):
         """Get an ordered list of keys."""

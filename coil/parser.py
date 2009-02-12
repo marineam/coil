@@ -22,6 +22,8 @@ class Link(tokenizer.Token):
 
         tokenizer.Token.__init__(self, token, 'PATH', token.value)
 
+_missing = object()
+
 class StructPrototype(struct.Struct):
     """A temporary struct used for parsing only.
 
@@ -44,52 +46,65 @@ class StructPrototype(struct.Struct):
         self._deleted = []
 
     def __contains__(self, key):
-        self._validate_key(key)
         return key in self._values or key in self._secondary_values
 
     def _validate_doubleset(self, key):
-        """Private: validate key and check that is is unused"""
-        self._validate_key(key)
+        """Private: check that key has not been used (excluding parents)"""
 
         if key in self._deleted or key in self._values:
             raise errors.CoilStructError(self,
                     "Setting/deleting '%s' twice" % repr(key))
 
-    def __setitem__(self, key, value):
-        self._validate_doubleset(key)
+    def set(self, path, value, expand=None, silent=False):
+        parent, key = self._get_path_parent(path)
 
-        if key in self._secondary_values:
-            del self._secondary_values[key]
+        if parent is self:
+            self._validate_doubleset(key)
 
-        struct.Struct.__setitem__(self, key, value)
+            if path in self._secondary_values:
+                del self._secondary_values[key]
 
-    def __delitem__(self, key):
-        self._validate_doubleset(key)
-
-        if key in self._values:
-            del self._values[key]
-
-            if key in self._secondary_order:
-                self._secondary_order.remove(key)
-            else:
-                self._order.remove(key)
-        elif key in self._secondary_values:
-            del self._secondary_values[key]
-            self._secondary_order.remove(key)
+            struct.Struct.set(self, key, value, expand, silent)
         else:
-            raise errors.CoilStructError(self,
-                    "Deleting unknown key '%s'" % repr(key))
+            parent.set(key, value, expand, silent)
 
-        self._deleted.append(key)
+    def delete(self, path):
+        parent, key = self._get_path_parent(path)
 
-    def __getitem__(self, key):
-        self._validate_key(key)
-        if key in self._values:
-            return self._values[key]
-        elif key in self._secondary_values:
-            return self._secondary_values[key]
+        if parent is self:
+            self._validate_doubleset(key)
+
+            try:
+                struct.Struct.delete(self, key)
+            except KeyError:
+                if path in self._secondary_values:
+                    del self._secondary_values[key]
+                    self._secondary_order.remove(key)
+                else:
+                    raise
+
+            self._deleted.append(key)
         else:
-            raise errors.KeyMissingError(self, key)
+            parent.delete(key)
+
+    def get(self, path, default=_missing, expand=False, silent=False):
+        parent, key = self._get_path_parent(path)
+
+        if parent is self:
+            try:
+                return struct.Struct.get(self, key,
+                        expand=expand, silent=silent)
+            except KeyError:
+                value = self._secondary_values.get(key, _missing)
+
+                if value is not _missing:
+                    return self._expand_vars(key, value, expand, silent)
+                elif default is not _missing:
+                    return default
+                else:
+                    raise
+        else:
+            return parent.get(key, default, expand, silent)
 
     def __iter__(self):
         for key in self._secondary_order:
