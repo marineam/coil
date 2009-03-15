@@ -100,8 +100,9 @@ class Tokenizer(Location):
             else:
                 unexpected = "%s: %s" % (token.type, repr(token.value))
 
-            raise errors.CoilSyntaxError("Unexpected %s, looking for %s" %
-                    (unexpected, " ".join(types)), self)
+            raise errors.CoilParseError(token,
+                    "Unexpected %s, looking for %s" %
+                    (unexpected, " ".join(types)))
 
     def _push(self, token):
         """Push a token back into the tokenizer"""
@@ -194,8 +195,8 @@ class Tokenizer(Location):
             return self._parse_string()
 
         # Unknown input :-(
-        raise errors.CoilSyntaxError(
-                "Unrecognized input: %s" % self._buffer, self)
+        raise errors.CoilParseError(self,
+                "Unrecognized input: %s" % self._buffer)
 
     def _next_line_generator(self):
         for line in self._input:
@@ -233,7 +234,7 @@ class Tokenizer(Location):
                 try:
                     return buf.decode(self._encoding)
                 except UnicodeDecodeError, ex:
-                    raise errors.CoilUnicodeError(str(ex), self)
+                    raise errors.CoilUnicodeError(self, str(ex))
             else:
                 return buf
 
@@ -254,15 +255,14 @@ class Tokenizer(Location):
                 match = pattern.match(strbuf)
 
             if not match:
-                raise errors.CoilSyntaxError(
-                        "Invalid string: %s" % strbuf, token)
+                raise errors.CoilParseError(token, "Invalid string")
 
             if not match.group(3):
                 # Read another line if string has no ending ''' or """
                 try:
                     new = self._next_line()
                 except StopIteration:
-                    raise errors.CoilSyntaxError("Unterminated string", token)
+                    raise errors.CoilParseError(token, "Unterminated string")
 
                 strbuf += decode(new)
             else:

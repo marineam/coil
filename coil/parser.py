@@ -31,48 +31,6 @@ class StructPrototype(struct.Struct):
         # but have been removed from this Struct by ~foo tokens.
         self._deleted = []
 
-    def __contains__(self, key):
-        return key in self._values or key in self._secondary_values
-
-    def _validate_doubleset(self, key):
-        """Private: check that key has not been used (excluding parents)"""
-
-        if key in self._deleted or key in self._values:
-            raise errors.CoilStructError(self,
-                    "Setting/deleting '%s' twice" % repr(key))
-
-    def set(self, path, value, expand=None, silent=False):
-        parent, key = self._get_path_parent(path)
-
-        if parent is self:
-            self._validate_doubleset(key)
-
-            if path in self._secondary_values:
-                del self._secondary_values[key]
-
-            struct.Struct.set(self, key, value, expand, silent)
-        else:
-            parent.set(key, value, expand, silent)
-
-    def delete(self, path):
-        parent, key = self._get_path_parent(path)
-
-        if parent is self:
-            self._validate_doubleset(key)
-
-            try:
-                struct.Struct.delete(self, key)
-            except KeyError:
-                if path in self._secondary_values:
-                    del self._secondary_values[key]
-                    self._secondary_order.remove(key)
-                else:
-                    raise
-
-            self._deleted.append(key)
-        else:
-            parent.delete(key)
-
     def get(self, path, default=_missing, expand=False, silent=False):
         parent, key = self._get_path_parent(path)
 
@@ -91,6 +49,41 @@ class StructPrototype(struct.Struct):
                     raise
         else:
             return parent.get(key, default, expand, silent)
+
+    def _set(self, path, value, location=None):
+        parent, key = self._get_path_parent(path)
+
+        if parent is self:
+            self._validate_doubleset(key)
+
+            if path in self._secondary_values:
+                del self._secondary_values[key]
+
+            struct.Struct._set(self, key, value, location)
+        else:
+            parent._set(key, value, location)
+
+    def __delitem__(self, path):
+        parent, key = self._get_path_parent(path)
+
+        if parent is self:
+            self._validate_doubleset(key)
+
+            try:
+                struct.Struct.__delitem__(self, key)
+            except KeyError:
+                if path in self._secondary_values:
+                    del self._secondary_values[key]
+                    self._secondary_order.remove(key)
+                else:
+                    raise
+
+            self._deleted.append(key)
+        else:
+            del parent[key]
+
+    def __contains__(self, key):
+        return key in self._values or key in self._secondary_values
 
     def __iter__(self):
         for key in self._secondary_order:
@@ -129,6 +122,13 @@ class StructPrototype(struct.Struct):
 
             self._secondary_values[key] = value
             self._secondary_order.append(key)
+
+    def _validate_doubleset(self, key):
+        """Private: check that key has not been used (excluding parents)"""
+
+        if key in self._deleted or key in self._values:
+            raise errors.CoilStructError(self,
+                    "Setting/deleting '%s' twice" % repr(key))
 
 
 class Parser(object):
@@ -185,16 +185,17 @@ class Parser(object):
             token = self._tokenizer.next('PATH')
 
             try:
-                container.delete(token.value)
+                del container[token.value]
             except errors.CoilStructError, ex:
-                raise errors.CoilDataError(token, ex.message)
+                ex.location(token)
+                raise ex
         else:
             self._tokenizer.next(':')
 
             if token.value[0] == '@':
                 special = getattr(self, "_special_%s" % token.value[1:], None)
                 if special is None:
-                    raise errors.CoilSyntaxError(token,
+                    raise errors.CoilParseError(token,
                             "Unknown special attribute: %s" % token.value)
                 else:
                     special(container)
@@ -204,35 +205,24 @@ class Parser(object):
     def _parse_value(self, container, name):
         """path, number, or string"""
 
-        token = self._tokenizer.peek('{', '[', '=',
-                'PATH', 'INTEGER', 'FLOAT', 'STRING', 'BOOLEAN')
+        token = self._tokenizer.peek('{', '[', '=', 'PATH', 'VALUE')
 
         if token.type == '{':
             # Got a struct, will be added inside _parse_struct
             self._parse_struct(container, name)
-            value = None
         elif token.type == '[':
             # Got a list, will be added inside _parse_list
             self._parse_list(container, name)
-            value = None
         elif token.type == '=':
             # Got a reference, chomp the =, save the link
-            # I only support the = for backwards compatibility
             self._tokenizer.next('=')
-            value = struct.Link(self._tokenizer.next('PATH'), container)
+            self._parse_link(container, name)
         elif token.type == 'PATH':
             # Got a reference, save the link
-            value = struct.Link(self._tokenizer.next('PATH'), container)
+            self._parse_link(container, name)
         else:
             # Plain old boring values
-            self._tokenizer.next('INTEGER', 'FLOAT', 'STRING', 'BOOLEAN')
-            value = token.value
-
-        if value is not None:
-            try:
-                container.set(name, value)
-            except errors.CoilStructError, ex:
-                raise errors.CoilDataError(token, ex.message)
+            self._parse_plain(container, name)
 
     def _parse_struct(self, container, name):
         """{ attrbute... }"""
@@ -241,9 +231,10 @@ class Parser(object):
 
         try:
             new = StructPrototype()
-            container.set(name, new)
+            container[name] = new
         except errors.CoilStructError, ex:
-            raise errors.CoilDataError(token, ex.message)
+            ex.location(token)
+            raise ex
 
         while self._tokenizer.peek('~', 'PATH', '}').type != '}':
             self._parse_attribute(new)
@@ -253,20 +244,29 @@ class Parser(object):
     def _parse_list(self, container, name):
         """[ number or string ... ]"""
 
-        valid = ('INTEGER', 'FLOAT', 'STRING', 'BOOLEAN')
         token = self._tokenizer.next('[')
 
-        try:
-            new = list()
-            container.set(name, new)
-        except errors.CoilStructError, ex:
-            raise errors.CoilDataError(token, ex.message)
+        new = list()
+        container[name] = new
 
-        while self._tokenizer.peek(']', *valid).type != ']':
-            item = self._tokenizer.next(*valid)
+        while self._tokenizer.peek(']', 'VALUE').type != ']':
+            item = self._tokenizer.next('VALUE')
             new.append(item.value)
 
         self._tokenizer.next(']')
+
+    def _parse_link(self, container, name):
+        """some.path"""
+
+        token = self._tokenizer.next('PATH')
+        link = struct.Link(token.value, container)
+        container._set(name, link, location=token)
+
+    def _parse_plain(self, container, name):
+        """number, string, bool, or None"""
+
+        token = self._tokenizer.next('VALUE')
+        container._set(name, token.value, location=token)
 
     def _special_extends(self, container):
         """Handle @extends: some.struct"""
@@ -276,7 +276,8 @@ class Parser(object):
         try:
             parent = container.get(token.value)
         except errors.CoilStructError, ex:
-            raise errors.CoilDataError(token, str(ex))
+            ex.location(token)
+            raise ex
 
         container.extends(parent)
 
@@ -295,38 +296,47 @@ class Parser(object):
     def _special_file(self, container):
         """Handle @file"""
 
-        token = self._tokenizer.next('[', 'STRING')
+        token = self._tokenizer.next('[', 'VALUE')
 
         if token.type == '[':
             # @file: [ "file_name" "substruct_name" ]
-            file_path = self._tokenizer.next('STRING').value
-            struct_path = self._tokenizer.next('STRING').value
+            file_path = self._tokenizer.next('VALUE').value
+            struct_path = self._tokenizer.next('VALUE').value
             self._tokenizer.next(']')
         else:
             # @file: "file_name"
             file_path = token.value
             struct_path = ""
 
+        if (not isinstance(file_path, basestring) or
+                not isinstance(struct_path, basestring)):
+            raise errors.CoilParseError(token, "@file value must be a string")
+
         if self._path and not os.path.isabs(file_path):
             file_path = os.path.join(os.path.dirname(self._path), file_path)
 
         if not os.path.isabs(file_path):
-            raise errors.CoilDataError(token,
+            raise errors.CoilParseError(token,
                     "Unable to find absolute path: %s" % file_path)
 
         try:
             self._extend_with_file(container, file_path, struct_path)
-        except (IOError, errors.CoilStructError), ex:
-            raise errors.CoilDataError(token, str(ex))
+        except IOError, ex:
+            raise errors.CoilParseError(token, str(ex))
 
     def _special_package(self, container):
         """Handle @package"""
 
-        token = self._tokenizer.next('STRING')
+        token = self._tokenizer.next('VALUE')
+
+        if not isinstance(token.value, basestring):
+            raise errors.CoilParseError(token,
+                    "@package value must be a string")
+
         try:
             package, path = token.value.split(":", 1)
         except ValueError:
-            errors.CoilSyntaxError(token,
+            errors.CoilParseError(token,
                     '@package value must be "package:path"')
 
         parts = package.split(".")
@@ -341,10 +351,10 @@ class Parser(object):
                 break
 
         if not fullpath:
-            raise errors.CoilDataError(token,
+            raise errors.CoilParseError(token,
                     "Unable to find package: %s" % package)
 
         try:
             self._extend_with_file(container, fullpath, "")
-        except (IOError, errors.CoilStructError), ex:
-            raise errors.CoilDataError(token, str(ex))
+        except IOError, ex:
+            raise errors.CoilParseError(token, str(ex))

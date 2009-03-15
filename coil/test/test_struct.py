@@ -73,27 +73,20 @@ class BasicTestCase(unittest.TestCase):
 
 class ExpansionTestCase(unittest.TestCase):
 
-    def testExpandSet(self):
-        root = struct.Struct()
-        root.set("foo", "bbq")
-        root.set("bar", "omgwtf${foo}", True)
-        self.assertEquals(root.get('bar'), "omgwtfbbq")
-
     def testExpandGet(self):
         root = struct.Struct()
-        root.set("foo", "bbq")
-        root.set("bar", "omgwtf${foo}")
+        root["foo"] = "bbq"
+        root["bar"] = "omgwtf${foo}"
         self.assertEquals(root.get('bar'), "omgwtf${foo}")
         self.assertEquals(root.get('bar', expand=True), "omgwtfbbq")
 
     def testExpandError(self):
         root = struct.Struct()
-        self.assertRaises(KeyError, root.set, "bar", "omgwtf${foo}", True)
-        root.set("bar", "omgwtf${foo}")
+        root["bar"] = "omgwtf${foo}"
         self.assertEquals(root.get('bar'), "omgwtf${foo}")
         self.assertRaises(KeyError, root.get, 'bar', expand=True)
 
     def testExpandSilent(self):
         root = struct.Struct()
-        root.set("bar", "omgwtf${foo}", True, True)
+        root["bar"] = "omgwtf${foo}"
         self.assertEquals(root.get('bar', None, True, True), "omgwtf${foo}")

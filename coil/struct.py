@@ -15,49 +15,53 @@ from UserDict import DictMixin
 
 from coil import tokenizer, errors
 
-_missing = object()
-
-class Link(object):
+class Link(tokenizer.Location):
     """A temporary symbolic link to another item"""
 
-    def __init__(self, path, container):
+    def __init__(self, path, container, location=None):
         """
         @param path: A path or the original Token defining the path.
         @type path: L{tokenizer.Token} or str
         @param container: The parent L{Struct} object.
         @type container: L{Struct}
+        @param location: Description of where the link is defined.
+        @type location L{str}
         """
 
         assert isinstance(container, Struct)
+        assert isinstance(path, basestring)
+        tokenizer.Location.__init__(self, location)
+        self.path = path
 
-        if isinstance(path, tokenizer.Token):
-            assert path.type == 'PATH'
-            self.path = path.value
-            self.token = path
-        else:
-            assert isinstance(token, basestring)
-            self.path = path
-            self.token = None
-
-class Struct(object, DictMixin):
+class Struct(tokenizer.Location, DictMixin):
     """A dict-like object for use in trees."""
 
     KEY = re.compile(r'^%s$' % tokenizer.Tokenizer.KEY_REGEX)
     PATH = re.compile(r'^%s$' % tokenizer.Tokenizer.PATH_REGEX)
     EXPAND = re.compile(r'\$\{(%s)\}' % tokenizer.Tokenizer.PATH_REGEX)
 
-    def __init__(self, base=(), container=None, name=None, recursive=True):
+    #: Signal L{Struct.get} to raise an error if key is not found
+    _raise = object()
+    #: Signal L{Struct._set} to preserve location data for key
+    _keep = object()
+
+    # These first methods likely would need to be overridden by subclasses
+
+    def __init__(self, base=(), container=None, name=None,
+            recursive=True, location=None):
         """
         @param base: A C{dict} or C{Struct} to initilize this one with.
         @param container: the parent C{Struct} if there is one.
         @param name: The name of this C{Struct} in C{container}.
         @param recursive: Recursively convert all mapping objects in
             C{base} to C{Struct} objects.
+        @param location: The where this C{Struct} is defined.
         """
 
         assert isinstance(container, Struct) or container is None
         assert isinstance(base, (list, tuple, dict, DictMixin))
 
+        tokenizer.Location.__init__(self, location)
         self.container = container
         self.name = name
         self._values = {}
@@ -72,6 +76,138 @@ class Struct(object, DictMixin):
             if recursive and isinstance(value, (dict, DictMixin)):
                 value = self.__class__(value, self, key)
             self[key] = value
+
+    def get(self, path, default=_raise, expand=False, silent=False):
+        """Get a value from any Struct in the tree.
+
+        @param path: key or arbitrary path to fetch.
+        @param default: return this value if item is missing.
+            Note that the behavior here differs from a C{dict}. If
+            C{default} is unspecified and missing a L{KeyMissingError}
+            will be raised as __getitem__ does, not return C{None}.
+        @param expand: Set to True or a mapping object (dict or
+            Struct) to enable string variable expansion (ie ${var}
+            values are expanded). If a mapping object is given it
+            will be checked for the value before this C{Struct}.
+        @param silent: When a string variable expansion fails to
+            find a value simply leave the variable unexpanded.
+            The default behavior is to raise a L{KeyMissingError}.
+
+        @return: The fetched item or the value of C{default}.
+        """
+
+        parent, key = self._get_path_parent(path)
+
+        if parent is self:
+            try:
+                value = self._values[key]
+            except KeyError:
+                if default == self._raise:
+                    raise errors.KeyMissingError(self, key)
+                else:
+                    value = default
+
+            value = self._expand_item(key, value, expand, silent)
+        else:
+            value = parent.get(key, default, expand, silent)
+
+        return value
+
+    def _set(self, path, value, location=None):
+        """Set a value in any Struct in the tree.
+
+        @param path: key or arbitrary path to set.
+        @param value: value to save.
+        @param location: defines where this option was defined.
+            Set to L{Struct._keep} to not modify the location if it
+            is already set, this is used by L{Struct.expand}.
+        """
+
+        parent, key = self._get_path_parent(path)
+
+        if parent is self:
+            if not re.match(self.KEY, key):
+                raise errors.KeyValueError(self, key)
+
+            if isinstance(value, Struct) and not value.container:
+                value.container = self
+                value.name = key
+
+            if key not in self:
+                self._order.append(key)
+
+            self._values[key] = value
+        else:
+            parent._set(key, value, location)
+
+    def __delitem__(self, path):
+        parent, key = self._get_path_parent(path)
+
+        if parent is self:
+            if not re.match(self.KEY, key):
+                raise errors.KeyValueError(self, key)
+
+            try:
+                self._order.remove(key)
+            except ValueError:
+                raise errors.KeyMissingError(self, key)
+
+            try:
+                del self._values[key]
+            except KeyError:
+                raise errors.KeyMissingError(self, key)
+        else:
+            del parent[key]
+
+    def __contains__(self, key):
+        return key in self._values
+
+    def __iter__(self):
+        """Iterate over the ordered list of keys."""
+        for key in self._order:
+            yield key
+
+    # The remaining methods likely do not need to be overridden in subclasses
+
+    def __getitem__(self, path):
+        return self.get(path)
+
+    def __setitem__(self, path, value):
+        return self._set(path, value)
+
+    def keys(self):
+        """Get an ordered list of keys."""
+        return list(iter(self))
+
+    def attributes(self):
+        """Alias for C{keys()}.
+
+        Only for compatibility with Coil <= 0.2.2.
+        """
+        return self.keys()
+
+    def has_key(self, key):
+        """True if key is in this C{Struct}"""
+        return key in self
+
+    def iteritems(self):
+        """Iterate over the ordered list of (key, value) pairs."""
+        for key in self:
+            yield key, self[key]
+
+    def expand(self, silent=False, recursive=False):
+        """Expand all Links and string variable substitutions.
+
+        This is useful when disabling expansion during parsing,
+        adding some extra values to the tree, then expanding.
+        """
+
+        for key in self:
+            value = self.get(key, expand=True, silent=silent)
+            if recursive and isinstance(value, Struct):
+                value.expand(silent, True)
+            else:
+                self._set(key, value, self._keep)
 
     def copy(self):
         """Recursively copy this C{Struct}"""
@@ -97,20 +233,24 @@ class Struct(object, DictMixin):
         else:
             return "%s.%s" % (self.container.path(), self.name)
 
-    def __contains__(self, key):
-        return key in self._values
+    def __str__(self):
+        attrs = []
+        for key, val in self.iteritems():
+            if isinstance(val, Struct):
+                attrs.append("%s: %s" % (repr(key), str(val)))
+            else:
+                attrs.append("%s: %s" % (repr(key), repr(val)))
+        return "{%s}" % " ".join(attrs)
 
-    def __setitem__(self, key, value):
-        self.set(key, value)
-
-    def __delitem__(self, key):
-        self.delete(key)
-
-    def __getitem__(self, key):
-        return self.get(key)
+    def __repr__(self):
+        attrs = ["%s: %s" % (repr(key), repr(val))
+                 for key, val in self.iteritems()]
+        return "%s({%s})" % (self.__class__.__name__, ", ".join(attrs))
 
     def _get_path_parent(self, path):
         """Returns the second to last Struct and last key in the path."""
+
+        # TODO: This function (and its users) should probably be recursive.
 
         if not isinstance(path, basestring):
             raise errors.KeyTypeError(self, path)
@@ -207,148 +347,7 @@ class Struct(object, DictMixin):
 
         return value
 
-    def get(self, path, default=_missing, expand=False, silent=False):
-        """Get a value from any Struct in the tree.
-
-        @param path: key or arbitrary path to fetch.
-        @param default: return this value if item is missing.
-            Note that the behavior here differs from a C{dict}. If
-            C{default} is unspecified and missing a L{KeyMissingError}
-            will be raised as __getitem__ does, not return C{None}.
-        @param expand: Set to True or a mapping object (dict or
-            Struct) to enable string variable expansion (ie ${var}
-            values are expanded). If a mapping object is given it
-            will be checked for the value before this C{Struct}.
-        @param silent: When a string variable expansion fails to
-            find a value simply leave the variable unexpanded.
-            The default behavior is to raise a L{KeyMissingError}.
-
-        @return: The fetched item or the value of C{default}.
-        """
-
-        parent, key = self._get_path_parent(path)
-
-        if parent is self:
-            try:
-                value = self._values[key]
-            except KeyError:
-                if default == _missing:
-                    raise errors.KeyMissingError(self, key)
-                else:
-                    value = default
-
-            value = self._expand_item(key, value, expand, silent)
-        else:
-            value = parent.get(key, default, expand, silent)
-
-        return value
-
-    def set(self, path, value, expand=None, silent=False):
-        """Set a value in any Struct in the tree.
-
-        @param path: key or arbitrary path to set.
-        @param value: value to save.
-        @param expand: Set to True or a mapping object (dict or
-            Struct) to enable string variable expansion (ie ${var}
-            values are expanded). If a mapping object is given it
-            will be checked for the value before this C{Struct}.
-        @param silent: When a string variable expansion fails to
-            find a value simply leave the variable unexpanded.
-            The default behavior is to raise a L{KeyMissingError}.
-        """
-
-        parent, key = self._get_path_parent(path)
-
-        if parent is self:
-            if not re.match(self.KEY, key):
-                raise errors.KeyValueError(self, key)
-
-            value = self._expand_item(key, value, expand, silent)
-
-            if isinstance(value, Struct) and not value.container:
-                value.container = self
-                value.name = key
-
-            if key not in self:
-                self._order.append(key)
-
-            self._values[key] = value
-        else:
-            parent.set(key, value, expand, silent)
-
-    def delete(self, path):
-        """Delete a value from any Struct in the tree.
-
-        @param path: key or arbitrary path to set.
-        """
-
-        parent, key = self._get_path_parent(path)
-
-        if parent is self:
-            if not re.match(self.KEY, key):
-                raise errors.KeyValueError(self, key)
-
-            try:
-                self._order.remove(key)
-            except ValueError:
-                raise errors.KeyMissingError(self, key)
-
-            try:
-                del self._values[key]
-            except KeyError:
-                raise errors.KeyMissingError(self, key)
-        else:
-            parent.delete(key)
-
-    def keys(self):
-        """Get an ordered list of keys."""
-        return list(iter(self))
-
-    def attributes(self):
-        """Alias for C{keys()}.
-
-        Only for compatibility with Coil <= 0.2.2.
-        """
-        return self.keys()
-
-    def __iter__(self):
-        """Iterate over the ordered list of keys."""
-        for key in self._order:
-            yield key
-
-    def iteritems(self):
-        """Iterate over the ordered list of (key, value) pairs."""
-        for key in self:
-            yield key, self[key]
-
-    def expand(self, silent=False, recursive=False):
-        """Expand all Links and string variable substitutions.
-
-        This is useful when disabling expansion during parsing,
-        adding some extra values to the tree, then expanding.
-        """
-
-        for key, value in self.iteritems():
-            if recursive and isinstance(value, Struct):
-                value.expand(silent, True)
-            else:
-                self.set(key, value, True, silent)
-
-    def __str__(self):
-        attrs = []
-        for key, val in self.iteritems():
-            if isinstance(val, Struct):
-                attrs.append("%s: %s" % (repr(key), str(val)))
-            else:
-                attrs.append("%s: %s" % (repr(key), repr(val)))
-        return "{%s}" % " ".join(attrs)
-
-    def __repr__(self):
-        attrs = ["%s: %s" % (repr(key), repr(val))
-                 for key, val in self.iteritems()]
-        return "%s({%s})" % (self.__class__.__name__, ", ".join(attrs))
-
-#: For compatibility with Coil <= 0.2.2, use KeyError or L{KeyMissingError}
+#: For compatibility with Coil <= 0.2.2, use C{KeyError} or L{KeyMissingError}
 StructAttributeError = errors.KeyMissingError
 
 class StructNode(object):
@@ -365,7 +364,7 @@ class StructNode(object):
     def has_key(self, attr):
         return self._struct.has_key(attr)
 
-    def get(self, attr, default=_missing):
+    def get(self, attr, default=Struct._raise):
         val = self._struct.get(attr, default)
         if isinstance(val, Struct):
             val = self.__class__(val)

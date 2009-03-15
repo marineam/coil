@@ -77,7 +77,7 @@ class BasicTestCase(unittest.TestCase):
         root = parser.Parser(["y: [12 #hello\n]"]).root()
         self.assertEquals(root.get("y"), [12])
 
-    def testSyntaxError(self):
+    def testParseError(self):
         for coil in (
             "struct: {",
             "struct: }",
@@ -103,8 +103,7 @@ class BasicTestCase(unittest.TestCase):
             'a: {@extends: .}',
             'a: [1 2 3]]',
             ):
-            self.assertRaises(tokenizer.errors.CoilSyntaxError,
-                    parser.Parser, [coil])
+            self.assertRaises(tokenizer.errors.CoilError, parser.Parser, [coil])
 
     def testOrder(self):
         self.assertEqual(parser.Parser(["x: =y y: 'foo'"]).root()['x'], "foo")

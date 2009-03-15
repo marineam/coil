@@ -4,18 +4,20 @@
 class CoilError(Exception):
     """Generic error for Coil"""
 
-    def __init__(self, reason, location=None):
-        if location:
-            self.filePath = location.filePath
-            self.line = location.line
-            self.column = location.column
-        else:
-            self.filePath = None
-            self.line = None
-            self.column = None
-
+    def __init__(self, location, reason):
         self.reason = reason
+        self.location(location)
         Exception.__init__(self, reason)
+
+    def location(self, location):
+        """Update the parser location for this exception.
+        This is useful for properly tagging L{CoilStructErrors}
+        that are raised during parse time.
+        """
+
+        self.filePath = location.filePath
+        self.line = location.line
+        self.column = location.column
 
     def __str__(self):
         if self.filePath or self.line:
@@ -28,7 +30,7 @@ class CoilStructError(CoilError):
 
     def __init__(self, struct, reason):
         self.structPath = struct.path()
-        CoilError.__init__(self, reason, struct)
+        CoilError.__init__(self, struct, reason)
 
     def __str__(self):
         if self.filePath or self.line:
@@ -62,10 +64,10 @@ class KeyValueError(CoilStructError, ValueError):
         msg = "The key %s contains invalid characters" % repr(key)
         CoilStructError.__init__(self, struct, msg)
 
-class CoilSyntaxError(CoilError):
+class CoilParseError(CoilError):
     """General error during parsing"""
     pass
 
-class CoilUnicodeError(CoilSyntaxError):
+class CoilUnicodeError(CoilParseError):
     """Invalid unicode string"""
     pass
