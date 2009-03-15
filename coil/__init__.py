@@ -195,7 +195,7 @@ API Overview
     Struct({'a': 2, 'b': 3, 'c': 4})
 """
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 
 from coil.parser import Parser
 
