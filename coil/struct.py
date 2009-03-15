@@ -77,7 +77,7 @@ class Struct(tokenizer.Location, DictMixin):
                 value = self.__class__(value, self, key)
             self[key] = value
 
-    def get(self, path, default=_raise, expand=False, silent=False):
+    def get(self, path, default=_raise, expand=False, ignore=False):
         """Get a value from any Struct in the tree.
 
         @param path: key or arbitrary path to fetch.
@@ -88,10 +88,12 @@ class Struct(tokenizer.Location, DictMixin):
         @param expand: Set to True or a mapping object (dict or
             Struct) to enable string variable expansion (ie ${var}
             values are expanded). If a mapping object is given it
-            will be checked for the value before this C{Struct}.
-        @param silent: When a string variable expansion fails to
-            find a value simply leave the variable unexpanded.
-            The default behavior is to raise a L{KeyMissingError}.
+            will be used for checked for values not found in C{Struct}.
+            Set to False to disable all expansion.
+        @param ignore: Set to True (to ignore all) or a list of names
+            that are allowed to be missing during expansion.
+            If expansion is enabled and a key is not found and also
+            not ignored then a L{KeyMissingError} is raised.
 
         @return: The fetched item or the value of C{default}.
         """
@@ -107,9 +109,9 @@ class Struct(tokenizer.Location, DictMixin):
                 else:
                     value = default
 
-            value = self._expand_item(key, value, expand, silent)
+            value = self._expand_item(key, value, expand, ignore)
         else:
-            value = parent.get(key, default, expand, silent)
+            value = parent.get(key, default, expand, ignore)
 
         return value
 
@@ -195,17 +197,20 @@ class Struct(tokenizer.Location, DictMixin):
         for key in self:
             yield key, self[key]
 
-    def expand(self, silent=False, recursive=False):
+    def expand(self, expand=True, ignore=False, recursive=False):
         """Expand all Links and string variable substitutions.
 
         This is useful when disabling expansion during parsing,
         adding some extra values to the tree, then expanding.
         """
 
+        if expand is False or expand is None:
+            return
+
         for key in self:
-            value = self.get(key, expand=True, silent=silent)
+            value = self.get(key, expand=expand, ignore=ignore)
             if recursive and isinstance(value, Struct):
-                value.expand(silent, True)
+                value.expand(expand, ignore, True)
             else:
                 self._set(key, value, self._keep)
 
@@ -291,15 +296,15 @@ class Struct(tokenizer.Location, DictMixin):
 
         return struct, lastkey
 
-    def _expand_item(self, key, orig, expand, silent):
+    def _expand_item(self, key, orig, expand, ignore):
         """Expand Links and all ${var} values inside a string.
         
         @param key: Name of item we are expanding
         @param orig: Value of the item
         @param expand: Extra mapping object to use for expansion values
             if expand is None or False then this function is a no-op.
-        @param silent: Ignore missing variables 
-            (otherwise raise L{KeyMissingError})
+        @param ignore: True or a list of variables to ignore if missing,
+            otherwise raise L{KeyMissingError}
         """
 
         # TODO: catch all circular references!
@@ -310,14 +315,16 @@ class Struct(tokenizer.Location, DictMixin):
             if name == key:
                 raise errors.CoilStructError(self,
                         "A path inside %s is itself" % name)
-            elif expand is not True and name in expand:
-                value = expand[name]
-            elif name in self:
-                value = self.get(name, expand=expand, silent=silent)
-            elif silent:
-                value = match.group(0)
-            else:
-                raise errors.KeyMissingError(self, name)
+            try:
+                value = self.get(name, expand=expand, ignore=ignore)
+            except errors.KeyMissingError, ex:
+                if expand is not True and name in expand:
+                    value = expand[name]
+                elif ignore is True or ignore and name in ignore:
+                    value = match.group(0)
+                else:
+                    #ex.location(
+                    raise ex
 
             if not isinstance(value, basestring):
                 raise errors.CoilStructError(self,
@@ -334,11 +341,14 @@ class Struct(tokenizer.Location, DictMixin):
                 raise errors.CoilStructError(self,
                         "Item %s is a link that points to itself" % key)
             try:
-                value = self.get(orig.path, expand=expand, silent=silent)
+                value = self.get(orig.path, expand=expand, ignore=ignore)
             except KeyError, ex:
                 if expand is not True and value.path in expand:
                     value = expand[orig.path]
-                elif not silent:
+                elif ignore is True or ignore and orig.path in ignore:
+                    pass
+                else:
+                    #ex.location(
                     raise
         elif isinstance(orig, basestring):
             value = self.EXPAND.sub(expand_one, orig)

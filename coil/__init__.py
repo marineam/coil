@@ -199,19 +199,23 @@ __version__ = "0.3.0"
 
 from coil.parser import Parser
 
-def parse_file(file_name):
+def parse_file(file_name, **kwargs):
     """Open and parse a coil file.
 
-    @return: The root L{Struct}
+    See L{Parser} for possible keyword arguments.
+
+    @return: The root L{Struct} object.
     """
     coil = open(file_name)
-    return Parser(coil, file_name).root()
+    return Parser(coil, file_name, **kwargs).root()
 
-def parse(string):
+def parse(string, **kiwargs):
     """Parse a coil string.
 
-    @return: The root L{Struct}
+    See L{Parser} for possible keyword arguments.
+
+    @return: The root L{Struct} object.
     """
-    return Parser(string.splitlines()).root()
+    return Parser(string.splitlines(), **kwargs).root()
 
 __all__ = ['parse_file', 'parse', 'struct', 'parser', 'tokenizer', 'errors']

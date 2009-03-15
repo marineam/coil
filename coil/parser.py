@@ -30,24 +30,24 @@ class StructPrototype(struct.Struct):
         self._deleted = []
 
     def get(self, path, default=struct.Struct._raise,
-            expand=False, silent=False):
+            expand=False, ignore=False):
         parent, key = self._get_path_parent(path)
 
         if parent is self:
             try:
-                return struct.Struct.get(self, key,
-                        expand=expand, silent=silent)
+                return struct.Struct.get(self, key, self._raise,
+                        expand=expand, ignore=ignore)
             except KeyError:
                 value = self._secondary_values.get(key, self._raise)
 
                 if value is not self._raise:
-                    return self._expand_item(key, value, expand, silent)
+                    return self._expand_item(key, value, expand, ignore)
                 elif default is not self._raise:
                     return default
                 else:
                     raise
         else:
-            return parent.get(key, default, expand, silent)
+            return parent.get(key, default, expand, ignore)
 
     def _set(self, path, value, location=None):
         parent, key = self._get_path_parent(path)
@@ -133,14 +133,23 @@ class StructPrototype(struct.Struct):
 class Parser(object):
     """The standard coil parser"""
 
-    def __init__(self, input_, path=None, encoding=None, silent=False):
+    def __init__(self, input_, path=None, encoding=None,
+            expand=True, ignore=False):
         """
         @param input_: An iterator over lines of input.
             Typically a C{file} object or list of strings.
         @param path: Path to input file, used for errors and @file imports.
         @param encoding: Read strings using the given encoding. All
             string values will be C{unicode} objects rather than C{str}.
-        @param silent: Ignore any errors while attempting to follow links.
+        @param expand: Set to True or a mapping object (dict or
+            Struct) to enable string variable expansion (ie ${var}
+            values are expanded). If a mapping object is given it
+            will be checked for the value before this C{Struct}.
+            Set to False to disable all expansion.
+        @param ignore: Set to True (to ignore all) or a list of names
+            that are allowed to be missing during expansion.
+            If expansion is enabled and a key is not found and also
+            not ignored then a L{KeyMissingError} is raised.
         """
 
         if path:
@@ -159,7 +168,7 @@ class Parser(object):
 
         self._tokenizer.next('EOF')
         self._root = struct.Struct(self._prototype)
-        self._root.expand(silent, True)
+        self._root.expand(expand, ignore, True)
 
     def root(self):
         """Get the root Struct"""

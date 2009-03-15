@@ -68,6 +68,13 @@ class BasicTestCase(unittest.TestCase):
 
 class ExpansionTestCase(unittest.TestCase):
 
+    def testExpand(self):
+        root = struct.Struct()
+        root["foo"] = "bbq"
+        root["bar"] = "omgwtf${foo}"
+        root.expand()
+        self.assertEquals(root.get('bar'), "omgwtfbbq")
+
     def testExpandGet(self):
         root = struct.Struct()
         root["foo"] = "bbq"
@@ -75,13 +82,50 @@ class ExpansionTestCase(unittest.TestCase):
         self.assertEquals(root.get('bar'), "omgwtf${foo}")
         self.assertEquals(root.get('bar', expand=True), "omgwtfbbq")
 
+    def testExpandDefault(self):
+        root = struct.Struct()
+        root["foo"] = "bbq"
+        root["bar"] = "omgwtf${foo}${baz}"
+        root.expand({'foo':"123",'baz':"456"})
+        self.assertEquals(root.get('bar'), "omgwtfbbq456")
+
+    def testExpandGetDefault(self):
+        root = struct.Struct()
+        root["foo"] = "bbq"
+        root["bar"] = "omgwtf${foo}${baz}"
+        self.assertEquals(root.get('bar'), "omgwtf${foo}${baz}")
+        self.assertEquals(root.get('bar', expand={'foo':"123",'baz':"456"}),
+                "omgwtfbbq456")
+
+    def testExpandIgnore(self):
+        root = struct.Struct()
+        root["foo"] = "bbq"
+        root["bar"] = "omgwtf${foo}${baz}"
+        root.expand(ignore=True)
+        self.assertEquals(root.get('bar'), "omgwtfbbq${baz}")
+        root.expand(ignore=('baz',))
+        self.assertEquals(root.get('bar'), "omgwtfbbq${baz}")
+
+    def testExpandGetIgnore(self):
+        root = struct.Struct()
+        root["foo"] = "bbq"
+        root["bar"] = "omgwtf${foo}${baz}"
+        self.assertEquals(root.get('bar'), "omgwtf${foo}${baz}")
+        self.assertEquals(root.get('bar', expand=True, ignore=True),
+                "omgwtfbbq${baz}")
+        self.assertEquals(root.get('bar', expand=True, ignore=('baz',)),
+                "omgwtfbbq${baz}")
+
     def testExpandError(self):
+        root = struct.Struct()
+        root["bar"] = "omgwtf${foo}"
+        self.assertRaises(KeyError, root.expand)
+        self.assertEquals(root.get('bar'), "omgwtf${foo}")
+
+    def testExpandGetError(self):
         root = struct.Struct()
         root["bar"] = "omgwtf${foo}"
         self.assertEquals(root.get('bar'), "omgwtf${foo}")
         self.assertRaises(KeyError, root.get, 'bar', expand=True)
+        self.assertEquals(root.get('bar'), "omgwtf${foo}")
 
-    def testExpandSilent(self):
-        root = struct.Struct()
-        root["bar"] = "omgwtf${foo}"
-        self.assertEquals(root.get('bar', None, True, True), "omgwtf${foo}")
