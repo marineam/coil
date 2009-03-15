@@ -1,20 +1,41 @@
 # Copyright (c) 2008-2009 ITA Software, Inc.
 # See LICENSE.txt for details.
 
-class CoilStructError(Exception):
-    """Generic error for Struct"""
+class CoilError(Exception):
+    """Generic error for Coil"""
 
-    def __init__(self, struct, msg):
-        self._class = struct.__class__.__name__
-        self._name = struct.path()
-        self.message = msg
-        Exception.__init__(self, msg)
+    def __init__(self, reason, location=None):
+        if location:
+            self.filePath = location.filePath
+            self.line = location.line
+            self.column = location.column
+        else:
+            self.filePath = None
+            self.line = None
+            self.column = None
+
+        self.reason = reason
+        Exception.__init__(self, reason)
 
     def __str__(self):
-        return "<%s %s>: %s" % (self._class, self._name, self.message)
+        if self.filePath or self.line:
+            return "<%s:%s> %s" % (self.filePath, self.line, self.reason)
+        else:
+            return self.reason
 
-    def __repr__(self):
-        return "%s(<%s %s>, %s)" % (self._class, self._name, repr(self.message))
+class CoilStructError(CoilError):
+    """Generic error for Coil Struct objects, used by various Key errors"""
+
+    def __init__(self, struct, reason):
+        self.structPath = struct.path()
+        CoilError.__init__(self, reason, struct)
+
+    def __str__(self):
+        if self.filePath or self.line:
+            return "<%s %s:%s> %s" % (self.structPath,
+                    self.filePath, self.line, self.reason)
+        else:
+            return "<%s> %s" % (self.structPath, self.reason)
 
 class KeyMissingError(CoilStructError, KeyError):
     """The given key was not found"""
@@ -31,30 +52,20 @@ class KeyTypeError(CoilStructError, TypeError):
     """The given key was not a string"""
 
     def __init__(self, struct, key):
-        msg = "The key must be a string, got %s" % type(key)
+        msg = "Keys must be strings, got %s" % type(key)
         CoilStructError.__init__(self, struct, msg)
 
 class KeyValueError(CoilStructError, ValueError):
     """The given key contained invalid characters"""
 
     def __init__(self, struct, key):
-        msg = "The key %s is invalid" % repr(key)
+        msg = "The key %s contains invalid characters" % repr(key)
         CoilStructError.__init__(self, struct, msg)
 
-class CoilSyntaxError(Exception):
-    def __init__(self, token, reason):
-        self.path = token.path
-        self.line = token.line
-        self.column = token.column
-        self.reason = reason
-
-        Exception.__init__(self, "%s: %s (%s:%d:%d)" %
-                (self.__class__.__name__, reason,
-                 self.path, self.line, self.column))
+class CoilSyntaxError(CoilError):
+    """General error during parsing"""
+    pass
 
 class CoilUnicodeError(CoilSyntaxError):
+    """Invalid unicode string"""
     pass
-
-class CoilDataError(CoilSyntaxError):
-    pass
-

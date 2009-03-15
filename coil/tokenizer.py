@@ -7,43 +7,44 @@ import re
 
 from coil import errors
 
-class Token(object):
+class Location(object):
+    """Represents a location in a file"""
+
+    def __init__(self, location=None):
+        if location:
+            self.filePath = location.filePath
+            self.line = location.line
+            self.column = location.column
+        else:
+            self.filePath = None
+            self.line = None
+            self.column = None
+
+class Token(Location):
     """Represents a single token"""
 
-    def __init__(self, token, type_, value=None):
+    #: Valid Token types
+    TYPES = ('{', '}', '[', ']', ':', '~', '=', 'PATH', 'VALUE', 'EOF')
+
+    def __init__(self, location, type_, value=None):
         """
-        @param token: The L{Tokenizer} or another C{Token}.
-            Used to get the current file and position in the input.
+        @param location: A L{Location} object that defines where this
+            token was found, typically this is the L{Tokenizer}.
         @param type_: A string defining the type of token.
             Must be one of the types listed in L{Tokenizer.TYPES}.
         @param value: The string value of this token.
         """
-        assert type_ in Tokenizer.TYPES
-
-        # Turn numbers into numbers, True/False into bool
-        if type_ == 'FLOAT':
-            value = float(value)
-        elif type_ == 'INTEGER':
-            value = int(value)
-        elif type_ == 'BOOLEAN':
-            value = (value == "True")
+        assert type_ in self.TYPES
 
         self.type = type_
         self.value = value
-        self.path = token.path
-        self.line = token.line
-        self.column = token.column
+        Location.__init__(self, location)
 
-    def __repr__(self):
-        return "<%s %s %s (%s:%s:%s)" % (self.__class__.__name__, self.type,
-                repr(self.value), self.path, self.line, self.column)
+    def __str__(self):
+        return "<%s: %s>" % (self.type, self.value)
 
-class Tokenizer(object):
+class Tokenizer(Location):
     """Split input into basic tokens"""
-
-    #: Valid Token types
-    TYPES = ('{', '}', '[', ']', ':', '~', '=',
-             'PATH', 'FLOAT', 'INTEGER', 'STRING', 'BOOLEAN', 'EOF')
 
     # Note: keys may start with - but must be followed by a letter
     KEY_REGEX = r'-?[a-zA-Z_][\w-]*'
@@ -52,7 +53,7 @@ class Tokenizer(object):
     PATH = re.compile(PATH_REGEX)
     FLOAT = re.compile(r'-?[0-9]+\.[0-9]+')
     INTEGER = re.compile(r'-?[0-9]+')
-    BOOLEAN = re.compile(r'(True|False)')
+    KEYWORD = re.compile(r'(True|False|None)')
     WHITESPACE = re.compile(r'(#.*|\s+)')
 
     # Strings are a bit tricky...
@@ -66,16 +67,16 @@ class Tokenizer(object):
     _STR4 = re.compile(r'"((\\.|[^\\"])*)(")')
     _STRESC = re.compile(r'\\.')
 
-    def __init__(self, input_, path=None, encoding=None):
+    def __init__(self, input_, filePath=None, encoding=None):
         """
         @param input_: An iterator over lines of input.
             Typically a C{file} object or list of strings.
-        @param path: Path to input file, used for errors.
+        @param filePath: Path to input file, used for errors.
         @param encoding: Read strings using the given encoding. All
             string values will be C{unicode} objects rather than C{str}.
         """
 
-        self.path = path
+        self.filePath = filePath
         self.line = 0
         self.column = 0
         self._input = input_
@@ -91,7 +92,7 @@ class Tokenizer(object):
 
         assert types
         for x in types:
-            assert x in self.TYPES
+            assert x in Token.TYPES
 
         if token.type not in types:
             if token.type == token.value:
@@ -99,8 +100,8 @@ class Tokenizer(object):
             else:
                 unexpected = "%s: %s" % (token.type, repr(token.value))
 
-            raise errors.CoilSyntaxError(token, "Unexpected %s, looking for %s" %
-                    (unexpected, " ".join(types)))
+            raise errors.CoilSyntaxError("Unexpected %s, looking for %s" %
+                    (unexpected, " ".join(types)), self)
 
     def _push(self, token):
         """Push a token back into the tokenizer"""
@@ -129,12 +130,13 @@ class Tokenizer(object):
         if self._stack:
             return self._stack.pop()
 
+        # Eat whitespace and comments
         while True:
             if not self._buffer:
                 try:
                     self._buffer = self._next_line()
                 except StopIteration:
-                    return Token(self, 'EOF', 'EOF')
+                    return Token(self, 'EOF')
 
 
             # Buffer should at least have a newline
@@ -156,22 +158,44 @@ class Tokenizer(object):
                 self.column += 1
                 return token
 
-        # Simple tokens
-        for token_type in ('FLOAT', 'INTEGER', 'BOOLEAN', 'PATH'):
-            regex = getattr(self, token_type)
-            match = regex.match(self._buffer)
-            if match:
-                token = Token(self, token_type, match.group(0))
-                self._buffer = self._buffer[match.end():]
-                self.column += match.end()
-                return token
+        match = self.FLOAT.match(self._buffer)
+        if match:
+            token = Token(self, 'VALUE', float(match.group(0)))
+            self._buffer = self._buffer[match.end():]
+            self.column += match.end()
+            return token
+
+        match = self.INTEGER.match(self._buffer)
+        if match:
+            token = Token(self, 'VALUE', int(match.group(0)))
+            self._buffer = self._buffer[match.end():]
+            self.column += match.end()
+            return token
+
+        match = self.KEYWORD.match(self._buffer)
+        if match:
+            if match.group(0) == "None":
+                token = Token(self, 'VALUE', None)
+            else:
+                token = Token(self, 'VALUE', bool(match.group(0) == 'True'))
+            self._buffer = self._buffer[match.end():]
+            self.column += match.end()
+            return token
+
+        match = self.PATH.match(self._buffer)
+        if match:
+            token = Token(self, 'PATH', match.group(0))
+            self._buffer = self._buffer[match.end():]
+            self.column += match.end()
+            return token
 
         # Strings are special because they may span multiple lines
         if self._buffer[0] in ('"', "'"):
             return self._parse_string()
 
         # Unknown input :-(
-        raise errors.CoilSyntaxError(self, "Unrecognized input: %s" % self._buffer)
+        raise errors.CoilSyntaxError(
+                "Unrecognized input: %s" % self._buffer, self)
 
     def _next_line_generator(self):
         for line in self._input:
@@ -209,11 +233,11 @@ class Tokenizer(object):
                 try:
                     return buf.decode(self._encoding)
                 except UnicodeDecodeError, ex:
-                    raise errors.CoilUnicodeError(self, str(ex))
+                    raise errors.CoilUnicodeError(str(ex), self)
             else:
                 return buf
 
-        token = Token(self, 'STRING')
+        token = Token(self, 'VALUE')
         strbuf = decode(self._buffer)
         pattern = None
 
@@ -230,15 +254,15 @@ class Tokenizer(object):
                 match = pattern.match(strbuf)
 
             if not match:
-                raise errors.CoilSyntaxError(token,
-                    "Invalid string: %s" % strbuf)
+                raise errors.CoilSyntaxError(
+                        "Invalid string: %s" % strbuf, token)
 
             if not match.group(3):
                 # Read another line if string has no ending ''' or """
                 try:
                     new = self._next_line()
                 except StopIteration:
-                    raise errors.CoilSyntaxError(token, "Unterminated string")
+                    raise errors.CoilSyntaxError("Unterminated string", token)
 
                 strbuf += decode(new)
             else:
