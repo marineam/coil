@@ -326,10 +326,12 @@ class Struct(tokenizer.Location, DictMixin):
                     #ex.location(
                     raise ex
 
-            if not isinstance(value, basestring):
+            if isinstance(value, (Struct, list)):
                 raise errors.CoilStructError(self,
                         "Attempted to expand %s of type %s in item %s"
                         % (name, type(value), key))
+            elif not isinstance(value, basestring):
+                return str(value)
             else:
                 return value
 
