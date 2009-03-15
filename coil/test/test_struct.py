@@ -51,22 +51,17 @@ class BasicTestCase(unittest.TestCase):
         self.assertEquals(list(struct.Struct(itemlist).iteritems()), itemlist)
 
     def testKeyMissing(self):
-        self.assertRaises(struct.errors.KeyMissingError,
-                lambda: self.struct['bogus'])
-        self.assertRaises(struct.errors.KeyMissingError,
-                lambda: self.struct.get('bad'))
+        self.assertRaises(errors.KeyMissingError, lambda: self.struct['bogus'])
+        self.assertRaises(errors.KeyMissingError, self.struct.get, 'bad')
 
     def testKeyType(self):
-        self.assertRaises(struct.errors.KeyTypeError,
-                lambda: self.struct[None])
-        self.assertRaises(struct.errors.KeyTypeError,
-                lambda: self.struct.get(None))
+        self.assertRaises(errors.KeyTypeError, lambda: self.struct[None])
+        self.assertRaises(errors.KeyTypeError, self.struct.get, None)
 
     def testKeyValue(self):
-        self.assertRaises(struct.errors.KeyValueError,
-                lambda: self.struct['first#'])
-        self.assertRaises(struct.errors.KeyValueError,
-                lambda: self.struct.get('first..second'))
+        self.assertRaises(errors.KeyValueError, lambda: self.struct['first#'])
+        self.assertRaises(errors.KeyValueError,
+                self.struct.get, 'first..second')
 
     def testDict(self):
         self.assertEquals(self.struct['first'].dict(), dict(self.data[0][1]))

@@ -1,8 +1,8 @@
-"""Tests for coil.tokenizer."""
+"""Tests for coil.parser."""
 
 import os
 import unittest
-from coil import parser, tokenizer, struct, parse_file, errors
+from coil import parser, struct, parse_file, errors
 
 class BasicTestCase(unittest.TestCase):
 
@@ -103,7 +103,7 @@ class BasicTestCase(unittest.TestCase):
             'a: {@extends: .}',
             'a: [1 2 3]]',
             ):
-            self.assertRaises(tokenizer.errors.CoilError, parser.Parser, [coil])
+            self.assertRaises(errors.CoilError, parser.Parser, [coil])
 
     def testOrder(self):
         self.assertEqual(parser.Parser(["x: =y y: 'foo'"]).root()['x'], "foo")
