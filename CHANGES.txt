@@ -1,8 +1,25 @@
-Version 0.3.1 (in progress)
-===========================
+Version 0.3.1 (2009-03-15)
+==========================
 
   - Change Struct.__getattr__ and friends to behave exactly like
     Struct.get, allowing access to arbitrary paths.
+
+  - Fix the tokenizer and parser to allow None as a value.
+
+  - Drop expansion support from Struct.set and make it private.
+
+  - Add new Struct.expand method to expand all Links and in-string
+    variables recursively over the entire tree.
+
+  - Default values given to any expansion methods are now only used if
+    the value is missing from the tree rather than overriding them.
+
+  - Switch from the 'silent' argument to 'ignore' for all expansion
+    methods and allow it to take a specific list of names that can
+    be ignored.
+
+  - Allow the Parser and the parsing helper functions to pass default
+    values and ignore options to Struct.expand.
 
 Version 0.3.0 (2009-02-10)
 ==========================

@@ -1,10 +1,7 @@
-Version 0.3.1
+Version 0.3.2
 =============
 
   - Extend Struct.update() to support recursive updates.
-  - Perform string variable expansion in Struct.__init__ to match the
-    behavior of the parser. Add option to silence expansion errors to
-    both __init__ and the various parsing functions.
 
 Future Ideas ?
 ==============
