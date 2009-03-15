@@ -91,8 +91,8 @@ class Tokenizer(Location):
         """Check that token has the correct type"""
 
         assert types
-        for x in types:
-            assert x in Token.TYPES
+        for type_ in types:
+            assert type_ in Token.TYPES
 
         if token.type not in types:
             if token.type == token.value:

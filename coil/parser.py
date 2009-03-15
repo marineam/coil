@@ -8,8 +8,6 @@ import sys
 
 from coil import tokenizer, struct, errors
 
-_missing = object()
-
 class StructPrototype(struct.Struct):
     """A temporary struct used for parsing only.
 
@@ -31,7 +29,8 @@ class StructPrototype(struct.Struct):
         # but have been removed from this Struct by ~foo tokens.
         self._deleted = []
 
-    def get(self, path, default=_missing, expand=False, silent=False):
+    def get(self, path, default=struct.Struct._raise,
+            expand=False, silent=False):
         parent, key = self._get_path_parent(path)
 
         if parent is self:
@@ -39,11 +38,11 @@ class StructPrototype(struct.Struct):
                 return struct.Struct.get(self, key,
                         expand=expand, silent=silent)
             except KeyError:
-                value = self._secondary_values.get(key, _missing)
+                value = self._secondary_values.get(key, self._raise)
 
-                if value is not _missing:
+                if value is not self._raise:
                     return self._expand_item(key, value, expand, silent)
-                elif default is not _missing:
+                elif default is not self._raise:
                     return default
                 else:
                     raise
