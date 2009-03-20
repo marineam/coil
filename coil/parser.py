@@ -49,7 +49,7 @@ class StructPrototype(struct.Struct):
         else:
             return parent.get(key, default, expand, ignore)
 
-    def _set(self, path, value, location=None):
+    def set(self, path, value, location=None):
         parent, key = self._get_path_parent(path)
 
         if parent is self:
@@ -58,9 +58,9 @@ class StructPrototype(struct.Struct):
             if path in self._secondary_values:
                 del self._secondary_values[key]
 
-            struct.Struct._set(self, key, value, location)
+            struct.Struct.set(self, key, value, location)
         else:
-            parent._set(key, value, location)
+            parent.set(key, value, location)
 
     def __delitem__(self, path):
         parent, key = self._get_path_parent(path)
@@ -268,13 +268,13 @@ class Parser(object):
 
         token = self._tokenizer.next('PATH')
         link = struct.Link(token.value)
-        container._set(name, link, location=token)
+        container.set(name, link, location=token)
 
     def _parse_plain(self, container, name):
         """number, string, bool, or None"""
 
         token = self._tokenizer.next('VALUE')
-        container._set(name, token.value, location=token)
+        container.set(name, token.value, location=token)
 
     def _special_extends(self, container):
         """Handle @extends: some.struct"""

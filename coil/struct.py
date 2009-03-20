@@ -34,7 +34,7 @@ class Struct(tokenizer.Location, DictMixin):
 
     #: Signal L{Struct.get} to raise an error if key is not found
     _raise = object()
-    #: Signal L{Struct._set} to preserve location data for key
+    #: Signal L{Struct.set} to preserve location data for key
     _keep = object()
 
     # These first methods likely would need to be overridden by subclasses
@@ -107,7 +107,7 @@ class Struct(tokenizer.Location, DictMixin):
 
         return value
 
-    def _set(self, path, value, location=None):
+    def set(self, path, value, location=None):
         """Set a value in any Struct in the tree.
 
         @param path: key or arbitrary path to set.
@@ -132,7 +132,7 @@ class Struct(tokenizer.Location, DictMixin):
 
             self._values[key] = value
         else:
-            parent._set(key, value, location)
+            parent.set(key, value, location)
 
     def __delitem__(self, path):
         parent, key = self._get_path_parent(path)
@@ -167,7 +167,7 @@ class Struct(tokenizer.Location, DictMixin):
         return self.get(path)
 
     def __setitem__(self, path, value):
-        return self._set(path, value)
+        return self.set(path, value)
 
     def keys(self):
         """Get an ordered list of keys."""
@@ -204,7 +204,7 @@ class Struct(tokenizer.Location, DictMixin):
             if recursive and isinstance(value, Struct):
                 value.expand(expand, ignore, True)
             else:
-                self._set(key, value, self._keep)
+                self.set(key, value, self._keep)
 
     def copy(self):
         """Recursively copy this C{Struct}"""
