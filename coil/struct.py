@@ -134,7 +134,7 @@ class Struct(tokenizer.Location, DictMixin):
         @param value: value to save.
         @param location: defines where this value was defined.
             Set to L{Struct._keep} to not modify the location if it
-            is already set, this is used by L{Struct.expand_item}.
+            is already set, this is used by L{Struct.expanditem}.
         """
 
         parent, key = self._get_next_parent(path, True)
