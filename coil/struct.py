@@ -326,14 +326,61 @@ class Struct(tokenizer.Location, DictMixin):
         else:
             return "%s.%s" % (self.container.path(), self.name)
 
-    def __str__(self):
-        attrs = []
-        for key, val in self.iteritems():
-            if isinstance(val, Struct):
-                attrs.append("%s: %s" % (repr(key), str(val)))
+    def string(self, strict=True, prefix=''):
+        """Convert this C{Struct} tree to the coil text format.
+
+        Note that if any value is a unicode string then this
+        will return a unicode object rather than a str.
+
+        @param struct: If True then fail if the tree contains any
+            values that cannot be represented in the coil text format.
+        @type struct: bool
+        @param prefix: Start each line with the given prefix.
+            Used internally to properly intend sub-structs.
+        @type prefix: string
+        """
+
+        def stritem(item):
+            # FIXME: unicode breaks this, we need to handle encodings
+            # explicitly in Structs rather than just in Parser
+            if isinstance(item, basestring):
+                # Should we use """ for multi-line strings?
+                item = item.replace('\\', '\\\\')
+                item = item.replace('\n', '\\n')
+                item = item.replace('"', '\\"')
+                return '"%s"' % item
+            elif (isinstance(item, (int, long, float)) or
+                    item in (True, False, None)):
+                return str(item)
             else:
-                attrs.append("%s: %s" % (repr(key), repr(val)))
-        return "{%s}" % " ".join(attrs)
+                raise errors.StructError(self,
+                    "%s cannot be represented in the coil text format" % item)
+
+        result = ""
+        next_prefix = "%s    " % prefix
+
+        for key, val in self.iteritems():
+            # This should never happen, but might as well be safe
+            assert self.KEY.match(key)
+
+            result = "%s%s%s: " % (result, prefix, key)
+
+            if isinstance(val, Struct):
+                child = val.string(strict, "%s    " % prefix)
+                if child:
+                    result = "%s{\n%s\n%s}\n" % (result, child, prefix)
+                else:
+                    result += "{}"
+            elif isinstance(val, (list, tuple)):
+                result = "%s[%s]\n" % (result,
+                        " ".join([stritem(x) for x in val]))
+            else:
+                result = "%s%s\n" % (result, stritem(val))
+
+        return result.rstrip()
+
+    def __str__(self):
+        return self.string()
 
     def __repr__(self):
         attrs = ["%s: %s" % (repr(key), repr(val))
