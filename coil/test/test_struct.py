@@ -165,3 +165,15 @@ class ExpansionTestCase(unittest.TestCase):
         root["bar"] = "b"
         self.assertEquals(root.expanditem("foo", {'bar': "a"}), "b")
 
+    def testCopy(self):
+        a = struct.Struct()
+        a["foo"] = [ "omgwtf${bar}" ]
+        a["bar"] = "a"
+        b = a.copy()
+        b["bar"] = "b"
+        self.assertEquals(a.expanditem("foo"), [ "omgwtfa" ])
+        self.assertEquals(b.expanditem("foo"), [ "omgwtfb" ])
+        a.expand()
+        b.expand()
+        self.assertEquals(a.get("foo"), [ "omgwtfa" ])
+        self.assertEquals(b.get("foo"), [ "omgwtfb" ])
