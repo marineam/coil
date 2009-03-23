@@ -197,16 +197,11 @@ class Struct(tokenizer.Location, DictMixin):
 
         This modifies the tree!
 
-        @param defaults: default values to use if undefined.
-        @type defaults: dict
-        @param ignore: a set of keys that are ignored if undefined
-            and not in defaults. Otherwise raise L{KeyMissingError}.
-        @type ignore: any container
+        @param defaults: See L{Struct.expanditem}
+        @param ignore: See L{Struct.expanditem}
         @param recursive: recursively expand sub-structs
         @type recursive: bool
-        @param block: a set of absolute paths that cannot be expanded.
-            This is used internally to avoid circular references.
-        @type block: any container
+        @param block: See L{Struct.expanditem}
         """
 
         abspath = self.path()

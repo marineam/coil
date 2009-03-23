@@ -121,8 +121,8 @@ class Parser(object):
         @param encoding: Read strings using the given encoding. All
             string values will be C{unicode} objects rather than C{str}.
         @param expand: Enables/disables expansion of the parsed tree.
-        @param defaults: See L{struct.Struct.expand}
-        @param ignore: See L{struct.Struct.expand}
+        @param defaults: See L{struct.Struct.expanditem}
+        @param ignore: See L{struct.Struct.expanditem}
         """
 
         if path:
