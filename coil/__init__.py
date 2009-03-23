@@ -209,7 +209,7 @@ def parse_file(file_name, **kwargs):
     coil = open(file_name)
     return Parser(coil, file_name, **kwargs).root()
 
-def parse(string, **kiwargs):
+def parse(string, **kwargs):
     """Parse a coil string.
 
     See L{Parser} for possible keyword arguments.
