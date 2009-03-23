@@ -78,6 +78,17 @@ class BasicTestCase(unittest.TestCase):
         self.assertEquals(s['new.sub'], True)
         self.assertEquals(s['new']['sub'], True)
 
+    def testCopy(self):
+        a = self.struct['first'].copy()
+        b = self.struct['first'].copy()
+        a['string'] = "this is a"
+        b['string'] = "this is b"
+        self.assertEquals(a['string'], "this is a")
+        self.assertEquals(b['string'], "this is b")
+        self.assertEquals(a['@root.string'], "this is a")
+        self.assertEquals(b['@root.string'], "this is b")
+        self.assertEquals(self.struct['first.string'], "something")
+
 class ExpansionTestCase(unittest.TestCase):
 
     def testExpand(self):
