@@ -1,7 +1,10 @@
-Version 0.3.2
+Version 0.3.?
 =============
 
   - Extend Struct.update() to support recursive updates.
+  - Store charset info in Struct to aid converting unicode back to str
+  - Extend documentation to cover more of the API, particularly details
+    about Struct.expand and related operations.
 
 Future Ideas ?
 ==============
