@@ -281,7 +281,7 @@ class Struct(tokenizer.Location, DictMixin):
                 subval = self.expanditem(subkey, defaults, ignore, block)
             except errors.KeyMissingError, ex:
                 if ignore is True or ex.key in ignore:
-                    subval = match.group(0)
+                    return match.group(0)
                 else:
                     raise
 
@@ -292,7 +292,7 @@ class Struct(tokenizer.Location, DictMixin):
                 subval = self.expanditem(link.path, defaults, ignore, block)
             except errors.KeyMissingError, ex:
                 if ignore is True or ex.key in ignore:
-                    subval = match.group(0)
+                    return link
                 else:
                     raise
 
