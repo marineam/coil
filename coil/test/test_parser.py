@@ -109,6 +109,13 @@ class BasicTestCase(unittest.TestCase):
         self.assertEqual(parser.Parser(["x: =y y: 'foo'"]).root()['x'], "foo")
         self.assertEqual(parser.Parser(["y: 'foo' x: =y"]).root()['x'], "foo")
 
+    def testList(self):
+        root = parser.Parser(["x: ['a' 1 2.0 True False None]"]).root()
+        self.assertEqual(root['x'], ['a', 1, 2.0, True, False, None])
+
+    def testNestedList(self):
+        root = parser.Parser(["x: ['a' ['b' 'c']]"]).root()
+        self.assertEqual(root['x'], ['a', ['b', 'c']])
 
 class ExtendsTestCase(unittest.TestCase):
 

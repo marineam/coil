@@ -224,16 +224,27 @@ class Parser(object):
         self._tokenizer.next('}')
 
     def _parse_list(self, container, name):
-        """[ number or string ... ]"""
-
-        token = self._tokenizer.next('[')
+        """[ number or string or list ... ]"""
 
         new = list()
         container[name] = new
+        self._parse_list_values(new)
 
-        while self._tokenizer.peek(']', 'VALUE').type != ']':
-            item = self._tokenizer.next('VALUE')
-            new.append(item.value)
+    def _parse_list_values(self, container):
+        """[ number or string or list ... ]"""
+
+        self._tokenizer.next('[')
+        token = self._tokenizer.peek('[', ']', 'VALUE')
+
+        while token.type != ']':
+            if token.type == '[':
+                new = list()
+                container.append(new)
+                self._parse_list_values(new)
+            else:
+                container.append(self._tokenizer.next('VALUE').value)
+
+            token = self._tokenizer.peek('[', ']', 'VALUE')
 
         self._tokenizer.next(']')
 

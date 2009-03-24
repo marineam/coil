@@ -349,6 +349,8 @@ class Struct(tokenizer.Location, DictMixin):
                 item = item.replace('\n', '\\n')
                 item = item.replace('"', '\\"')
                 return '"%s"' % item
+            elif isinstance(item, (list, tuple)):
+                return "[%s]" % " ".join([stritem(x) for x in item])
             elif (isinstance(item, (int, long, float)) or
                     item in (True, False, None)):
                 return str(item)
@@ -371,9 +373,6 @@ class Struct(tokenizer.Location, DictMixin):
                     result = "%s{\n%s\n%s}\n" % (result, child, prefix)
                 else:
                     result += "{}"
-            elif isinstance(val, (list, tuple)):
-                result = "%s[%s]\n" % (result,
-                        " ".join([stritem(x) for x in val]))
             else:
                 result = "%s%s\n" % (result, stritem(val))
 

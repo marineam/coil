@@ -177,3 +177,8 @@ class ExpansionTestCase(unittest.TestCase):
         b.expand()
         self.assertEquals(a.get("foo"), [ "omgwtfa" ])
         self.assertEquals(b.get("foo"), [ "omgwtfb" ])
+
+class StringTestCase(unittest.TestCase):
+    def testNestedList(self):
+        root = struct.Struct({'x': ['a', ['b', 'c']]})
+        self.assertEquals(str(root), 'x: ["a" ["b" "c"]]')
