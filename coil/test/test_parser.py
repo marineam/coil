@@ -68,6 +68,13 @@ class BasicTestCase(unittest.TestCase):
         self.assert_(root.get('sub.y', None) is not None)
         self.assertRaises(KeyError, lambda: root.get('sub.y.z'))
 
+    def testFileExpansion(self):
+        path = os.path.join(os.path.dirname(__file__), "simple.coil")
+        text = "path: %s sub: { @file: '${@root.path}' }" % repr(path)
+        root = parser.Parser([text]).root()
+        self.assertEquals(root.get('sub.x'), "x value")
+        self.assertEquals(root.get('sub.y.z'), "z value")
+
     def testPackage(self):
         root = parser.Parser(["@package: 'coil.test:simple.coil'"]).root()
         self.assertEquals(root.get('x'), "x value")

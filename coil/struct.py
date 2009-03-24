@@ -191,17 +191,18 @@ class Struct(tokenizer.Location, DictMixin):
             yield key, self[key]
 
     def expand(self, defaults=(), ignore=(), recursive=True, block=()):
-        """Expand all L{Link}s and string variable substitutions in
-        this and all child L{Struct}s. Useful when expansion must be
-        or partially ignored during parse-time and then finished later.
+        """Expand all L{Link}s and sub-string variables in this and,
+        if recursion is enabled, all child L{Struct} objects. This is
+        normally called during parsing but may be useful if more
+        control is required.
 
-        This modifies the tree!
+        This method modifies the tree!
 
-        @param defaults: See L{Struct.expanditem}
-        @param ignore: See L{Struct.expanditem}
+        @param defaults: See L{Struct.expandvalue}
+        @param ignore: See L{Struct.expandvalue}
         @param recursive: recursively expand sub-structs
         @type recursive: bool
-        @param block: See L{Struct.expanditem}
+        @param block: See L{Struct.expandvalue}
         """
 
         abspath = self.path()
@@ -218,10 +219,55 @@ class Struct(tokenizer.Location, DictMixin):
                 value.expand(defaults, ignore, True, block)
 
     def expanditem(self, path, defaults=(), ignore=(), block=()):
-        """Expand L{Link}s and string variable substitutions in an item.
+        """Fetch and expand an item at the given path. All L{Link}
+        and sub-string variables will be followed in the process.
+        This method is a no-op if value is a L{Struct}, use the
+        L{Struct.expand} method instead.
 
-        This does not make any changes to the tree.
-        
+        This method does not make any changes to the tree.
+
+        @param path: A key or arbitrary path to get.
+        @param defaults: See L{Struct.expandvalue}
+        @param ignore: See L{Struct.expandvalue}
+        @param block: See L{Struct.expandvalue}
+        """
+
+        parent, key = self._get_next_parent(path)
+
+        if parent is self:
+            if key:
+                abspath = "%s.%s" % (self.path(), key)
+            else:
+                abspath = self.path()
+
+            if abspath in block:
+                raise errors.StructError(self,
+                        "Circular reference to %s" % abspath)
+
+            block = list(block)
+            block.append(abspath)
+
+            try:
+                value = self[key]
+            except errors.KeyMissingError:
+                if key in defaults:
+                    return defaults[key]
+                else:
+                    raise
+
+            return self.expandvalue(value, defaults, ignore, block)
+        else:
+            return parent.expanditem(key, defaults, ignore, block)
+
+    def expandvalue(self, value, defaults=(), ignore=(), block=()):
+        """Use this L{Struct} to expand the given value. All L{Link}
+        and sub-string variables will be followed in the process.
+        This method is a no-op if value is a L{Struct}, use the
+        L{Struct.expand} method instead.
+
+        This method does not make any changes to the tree.
+
+        @param value: Any value to expand, typically a L{Link} or string.
         @param defaults: default values to use if undefined.
         @type defaults: dict
         @param ignore: a set of keys that are ignored if undefined
@@ -238,9 +284,7 @@ class Struct(tokenizer.Location, DictMixin):
             try:
                 subval = self.expanditem(subkey, defaults, ignore, block)
             except errors.KeyMissingError, ex:
-                if ex.key in defaults:
-                    subval = defaults[ex.key]
-                elif ignore is True or ex.key in ignore:
+                if ignore is True or ex.key in ignore:
                     subval = match.group(0)
                 else:
                     raise
@@ -251,52 +295,40 @@ class Struct(tokenizer.Location, DictMixin):
             try:
                 subval = self.expanditem(link.path, defaults, ignore, block)
             except errors.KeyMissingError, ex:
-                if ex.key in defaults:
-                    subval = defaults[ex.key]
-                elif ignore is True or ex.key in ignore:
+                if ignore is True or ex.key in ignore:
                     subval = match.group(0)
                 else:
                     raise
 
             # Structs and lists must be copied
             if isinstance(subval, Struct):
-                subval = self.__class__(subval)
+                subval = subval.copy()
             if isinstance(subval, list):
                 subval = list(subval)
 
             return subval
 
+        def expand_list(list_):
+            for i in xrange(len(list_)):
+                if isinstance(list_[i], basestring):
+                    list_[i] = self.EXPAND.sub(expand_substr, list_[i])
+                elif isinstance(list_[i], list):
+                    expand_list(list_[i])
+
         # defaults should only contain simple keys, not paths.
         for key in defaults:
             assert "." not in key
 
-        parent, key = self._get_next_parent(path)
+        if isinstance(value, Struct):
+            pass
+        elif isinstance(value, basestring):
+            value = self.EXPAND.sub(expand_substr, value)
+        elif isinstance(value, Link):
+            value = expand_link(value)
+        elif isinstance(value, list):
+            expand_list(value)
 
-        if parent is self:
-            abspath = self.path()
-            if key:
-                abspath = "%s.%s" % (self.path(), key)
-            if abspath in block:
-                raise errors.StructError(self,
-                        "Circular reference to %s" % abspath)
-
-            block = list(block)
-            block.append(abspath)
-
-            value = self.get(key)
-
-            if isinstance(value, basestring):
-                value = self.EXPAND.sub(expand_substr, value)
-            elif isinstance(value, Link):
-                value = expand_link(value)
-            elif isinstance(value, list):
-                for i in xrange(len(value)):
-                    if isinstance(value[i], basestring):
-                        value[i] = self.EXPAND.sub(expand_substr, value[i])
-
-            return value
-        else:
-            return parent.expanditem(key, defaults, ignore, block)
+        return value
 
     def copy(self):
         """Recursively copy this C{Struct}"""

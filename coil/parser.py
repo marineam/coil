@@ -301,6 +301,9 @@ class Parser(object):
             file_path = token.value
             struct_path = ""
 
+        file_path = container.expandvalue(file_path)
+        struct_path = container.expandvalue(struct_path)
+
         if (not isinstance(file_path, basestring) or
                 not isinstance(struct_path, basestring)):
             raise errors.CoilParseError(token, "@file value must be a string")
@@ -322,12 +325,14 @@ class Parser(object):
 
         token = self._tokenizer.next('VALUE')
 
-        if not isinstance(token.value, basestring):
+        value = container.expandvalue(token.value)
+
+        if not isinstance(value, basestring):
             raise errors.CoilParseError(token,
                     "@package value must be a string")
 
         try:
-            package, path = token.value.split(":", 1)
+            package, path = value.split(":", 1)
         except ValueError:
             errors.CoilParseError(token,
                     '@package value must be "package:path"')
