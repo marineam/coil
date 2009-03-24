@@ -235,11 +235,7 @@ class Struct(tokenizer.Location, DictMixin):
         parent, key = self._get_next_parent(path)
 
         if parent is self:
-            if key:
-                abspath = "%s.%s" % (self.path(), key)
-            else:
-                abspath = self.path()
-
+            abspath = self.path(key)
             if abspath in block:
                 raise errors.StructError(self,
                         "Circular reference to %s" % abspath)
@@ -330,6 +326,49 @@ class Struct(tokenizer.Location, DictMixin):
 
         return value
 
+    def unexpanded(self, absolute=False, recursive=True):
+        """Find a set of all keys that have not been expanded.
+        This is generally only useful if L{Struct.expand} was
+        run with the ignore parameter was set to see got missed.
+
+        Normally only the short key name is given as it would be
+        provided in defaults or ignore parameters for the various
+        expansion methods. Set absolute=True to return the full path
+        for each key instead.
+
+        @param absolute: Enables absolute paths.
+        @type absolute: bool
+        @param recursive: recursively search sub-structs
+        @type recursive: bool
+
+        @return: unexpanded keys
+        @rtype: set
+        """
+
+        def normalize_key(key):
+            if absolute:
+                return self.path(key)
+            else:
+                return key.rsplit('.', 1).pop()
+
+        def unexpanded_list(list_):
+            keys = set()
+
+            for item in list_:
+                if isinstance(item, basestring):
+                    for match in self.EXPAND.finditer(item):
+                        keys.add(normalize_key(match.group(1)))
+                elif isinstance(item, Link):
+                    keys.add(normalize_key(item.path))
+                elif isinstance(item, (list, tuple)):
+                    keys += unexpanded_list(item)
+                elif recursive and isinstance(item, Struct):
+                    keys += item.unexpanded(absolute)
+
+            return keys
+
+        return unexpanded_list(self.values())
+
     def copy(self):
         """Recursively copy this C{Struct}"""
 
@@ -350,13 +389,21 @@ class Struct(tokenizer.Location, DictMixin):
 
         return new
 
-    def path(self):
-        """Get the absolute path of this C{Struct} in the tree"""
+    def path(self, path=None):
+        """Get the absolute path of this C{Struct} or a relative path"""
 
-        if not self.container:
-            return "@root"
+        if path:
+            parent, key = self._get_next_parent(path)
+
+            if parent is self:
+                return "%s.%s" % (self.path(), key)
+            else:
+                return parent.path(path)
         else:
-            return "%s.%s" % (self.container.path(), self.name)
+            if not self.container:
+                return "@root"
+            else:
+                return "%s.%s" % (self.container.path(), self.name)
 
     def string(self, strict=True, prefix=''):
         """Convert this C{Struct} tree to the coil text format.
@@ -364,9 +411,9 @@ class Struct(tokenizer.Location, DictMixin):
         Note that if any value is a unicode string then this
         will return a unicode object rather than a str.
 
-        @param struct: If True then fail if the tree contains any
+        @param strict: If True then fail if the tree contains any
             values that cannot be represented in the coil text format.
-        @type struct: bool
+        @type strict: bool
         @param prefix: Start each line with the given prefix.
             Used internally to properly intend sub-structs.
         @type prefix: string

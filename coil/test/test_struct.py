@@ -129,6 +129,14 @@ class ExpansionTestCase(unittest.TestCase):
         root.expand(ignore=('baz',))
         self.assertEquals(root.get('bar'), "omgwtfbbq${baz}")
 
+    def testUnexpanded(self):
+        root = struct.Struct()
+        root["foo"] = "bbq"
+        root["bar"] = "omgwtf${foo}${baz}"
+        root.expand(ignore=True)
+        self.assertEquals(root.unexpanded(), set(["baz"]))
+        self.assertEquals(root.unexpanded(True), set(["@root.baz"]))
+
     def testExpandItemIgnore(self):
         root = struct.Struct()
         root["foo"] = "bbq"
