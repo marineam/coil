@@ -465,6 +465,22 @@ class Struct(tokenizer.Location, DictMixin):
                  for key, val in self.iteritems()]
         return "%s({%s})" % (self.__class__.__name__, ", ".join(attrs))
 
+    @classmethod
+    def validate_key(cls, key):
+        """Check if the given key is valid.
+
+        @rtype: bool
+        """
+        return bool(cls.KEY.match(key))
+
+    @classmethod
+    def validate_path(cls, path):
+        """Check if the given path is valid.
+
+        @rtype: bool
+        """
+        return bool(cls.PATH.match(path))
+
     def _get_next_parent(self, path, add_parents=False):
         """Returns the next Struct in a path and the remaining path.
 
