@@ -113,7 +113,7 @@ class Parser(object):
     """The standard coil parser"""
 
     def __init__(self, input_, path=None, encoding=None,
-            expand=True, defaults=(), ignore=()):
+            expand=True, defaults=(), ignore_missing=()):
         """
         @param input_: An iterator over lines of input.
             Typically a C{file} object or list of strings.
@@ -122,7 +122,7 @@ class Parser(object):
             string values will be C{unicode} objects rather than C{str}.
         @param expand: Enables/disables expansion of the parsed tree.
         @param defaults: See L{struct.Struct.expanditem}
-        @param ignore: See L{struct.Struct.expanditem}
+        @param ignore_missing: See L{struct.Struct.expanditem}
         """
 
         if path:
@@ -142,7 +142,7 @@ class Parser(object):
         self._tokenizer.next('EOF')
         self._root = struct.Struct(self._prototype)
         if expand:
-            self._root.expand(defaults, ignore)
+            self._root.expand(defaults, ignore_missing)
 
     def root(self):
         """Get the root Struct"""

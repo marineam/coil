@@ -190,7 +190,7 @@ class Struct(tokenizer.Location, DictMixin):
         for key in self:
             yield key, self[key]
 
-    def expand(self, defaults=(), ignore=(), recursive=True, block=()):
+    def expand(self, defaults=(), ignore_missing=(), recursive=True, block=()):
         """Expand all L{Link}s and sub-string variables in this and,
         if recursion is enabled, all child L{Struct} objects. This is
         normally called during parsing but may be useful if more
@@ -199,7 +199,7 @@ class Struct(tokenizer.Location, DictMixin):
         This method modifies the tree!
 
         @param defaults: See L{Struct.expandvalue}
-        @param ignore: See L{Struct.expandvalue}
+        @param ignore_missing: See L{Struct.expandvalue}
         @param recursive: recursively expand sub-structs
         @type recursive: bool
         @param block: See L{Struct.expandvalue}
@@ -213,12 +213,12 @@ class Struct(tokenizer.Location, DictMixin):
         block.append(abspath)
 
         for key in self:
-            value = self.expanditem(key, defaults, ignore, block)
+            value = self.expanditem(key, defaults, ignore_missing, block)
             self.set(key, value, self._keep)
             if recursive and isinstance(value, Struct):
-                value.expand(defaults, ignore, True, block)
+                value.expand(defaults, ignore_missing, True, block)
 
-    def expanditem(self, path, defaults=(), ignore=(), block=()):
+    def expanditem(self, path, defaults=(), ignore_missing=(), block=()):
         """Fetch and expand an item at the given path. All L{Link}
         and sub-string variables will be followed in the process.
         This method is a no-op if value is a L{Struct}, use the
@@ -228,7 +228,7 @@ class Struct(tokenizer.Location, DictMixin):
 
         @param path: A key or arbitrary path to get.
         @param defaults: See L{Struct.expandvalue}
-        @param ignore: See L{Struct.expandvalue}
+        @param ignore_missing: See L{Struct.expandvalue}
         @param block: See L{Struct.expandvalue}
         """
 
@@ -251,11 +251,11 @@ class Struct(tokenizer.Location, DictMixin):
                 else:
                     raise
 
-            return self.expandvalue(value, defaults, ignore, block)
+            return self.expandvalue(value, defaults, ignore_missing, block)
         else:
-            return parent.expanditem(key, defaults, ignore, block)
+            return parent.expanditem(key, defaults, ignore_missing, block)
 
-    def expandvalue(self, value, defaults=(), ignore=(), block=()):
+    def expandvalue(self, value, defaults=(), ignore_missing=(), block=()):
         """Use this L{Struct} to expand the given value. All L{Link}
         and sub-string variables will be followed in the process.
         This method is a no-op if value is a L{Struct}, use the
@@ -266,10 +266,10 @@ class Struct(tokenizer.Location, DictMixin):
         @param value: Any value to expand, typically a L{Link} or string.
         @param defaults: default values to use if undefined.
         @type defaults: dict
-        @param ignore: a set of keys that are ignored if undefined
-            and not in defaults. If simply set to True then all
-            are ignored. Otherwise raise L{KeyMissingError}.
-        @type ignore: True any container
+        @param ignore_missing: a set of keys that are ignored if
+            undefined and not in defaults. If simply set to True
+            then all are ignored. Otherwise raise L{KeyMissingError}.
+        @type ignore_missing: True any container
         @param block: a set of absolute paths that cannot be expanded.
             This is used internally to avoid circular references.
         @type block: any container
@@ -278,9 +278,10 @@ class Struct(tokenizer.Location, DictMixin):
         def expand_substr(match):
             subkey = match.group(1)
             try:
-                subval = self.expanditem(subkey, defaults, ignore, block)
+                subval = self.expanditem(subkey,
+                        defaults, ignore_missing, block)
             except errors.KeyMissingError, ex:
-                if ignore is True or ex.key in ignore:
+                if ignore_missing is True or ex.key in ignore_missing:
                     return match.group(0)
                 else:
                     raise
@@ -289,9 +290,10 @@ class Struct(tokenizer.Location, DictMixin):
 
         def expand_link(link):
             try:
-                subval = self.expanditem(link.path, defaults, ignore, block)
+                subval = self.expanditem(link.path,
+                        defaults, ignore_missing, block)
             except errors.KeyMissingError, ex:
-                if ignore is True or ex.key in ignore:
+                if ignore_missing is True or ex.key in ignore_missing:
                     return link
                 else:
                     raise
@@ -329,12 +331,13 @@ class Struct(tokenizer.Location, DictMixin):
     def unexpanded(self, absolute=False, recursive=True):
         """Find a set of all keys that have not been expanded.
         This is generally only useful if L{Struct.expand} was
-        run with the ignore parameter was set to see got missed.
+        run with the ignore_missing parameter was set to see got
+        missed.
 
         Normally only the short key name is given as it would be
-        provided in defaults or ignore parameters for the various
-        expansion methods. Set absolute=True to return the full path
-        for each key instead.
+        provided in defaults or ignore_missing parameters for the
+        various expansion methods. Set absolute=True to return the
+        full path for each key instead.
 
         @param absolute: Enables absolute paths.
         @type absolute: bool

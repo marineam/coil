@@ -134,16 +134,16 @@ class ExpansionTestCase(unittest.TestCase):
         root = struct.Struct()
         root["foo"] = "bbq"
         root["bar"] = "omgwtf${foo}${baz}"
-        root.expand(ignore=True)
+        root.expand(ignore_missing=True)
         self.assertEquals(root.get('bar'), "omgwtfbbq${baz}")
-        root.expand(ignore=('baz',))
+        root.expand(ignore_missing=('baz',))
         self.assertEquals(root.get('bar'), "omgwtfbbq${baz}")
 
     def testUnexpanded(self):
         root = struct.Struct()
         root["foo"] = "bbq"
         root["bar"] = "omgwtf${foo}${baz}"
-        root.expand(ignore=True)
+        root.expand(ignore_missing=True)
         self.assertEquals(root.unexpanded(), set(["baz"]))
         self.assertEquals(root.unexpanded(True), set(["@root.baz"]))
 
@@ -152,7 +152,7 @@ class ExpansionTestCase(unittest.TestCase):
         root["foo"] = "bbq"
         root["bar"] = "omgwtf${foo}${baz}"
         self.assertEquals(root.get('bar'), "omgwtf${foo}${baz}")
-        self.assertEquals(root.expanditem('bar', ignore=('baz',)),
+        self.assertEquals(root.expanditem('bar', ignore_missing=('baz',)),
                 "omgwtfbbq${baz}")
 
     def testExpandError(self):
