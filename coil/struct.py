@@ -25,6 +25,9 @@ class Link(object):
         """
         self.path = path
 
+    def __repr__(self):
+        return "%s(%s)" % (self.__class__.__name__, repr(self.path))
+
 class Struct(tokenizer.Location, DictMixin):
     """A dict-like object for use in trees."""
 
