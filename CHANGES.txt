@@ -1,11 +1,3 @@
-Version 0.3.2 (2009-03-17)
-==========================
-
-  - Allow substituting values other than strings into strings.
-    An error is still raised if the value is a list or Struct.
-
-  - Allow adding new attributes at an arbitrary tree depth.
-
 Version 0.3.1 (2009-03-15)
 ==========================
 
