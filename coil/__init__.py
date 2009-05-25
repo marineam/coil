@@ -180,10 +180,11 @@ API Overview
     >>> conf['sub']['y'] # inherited from x and added 'b'
     Struct({'a': 2, 'b': 3})
 
-  Also, we can access and items based on absolute and relative paths as
-  we can in the text format:
+  Also, using L{get<struct.Struct.get>} and L{set<struct.Struct.set>}
+  we can access and items based on absolute and relative paths as we
+  can in the text format:
 
-    >>> conf['x.z']
+    >>> conf.get("x.z")
     'hello'
     >>> conf.get("@root.x.z")
     'hello'
@@ -195,27 +196,23 @@ API Overview
     Struct({'a': 2, 'b': 3, 'c': 4})
 """
 
-__version__ = "0.3.4"
+__version__ = "0.3.0"
 
 from coil.parser import Parser
 
-def parse_file(file_name, **kwargs):
+def parse_file(file_name):
     """Open and parse a coil file.
 
-    See L{Parser} for possible keyword arguments.
-
-    @return: The root L{Struct} object.
+    @return: The root L{Struct}
     """
     coil = open(file_name)
-    return Parser(coil, file_name, **kwargs).root()
+    return Parser(coil, file_name).root()
 
-def parse(string, **kwargs):
+def parse(string):
     """Parse a coil string.
 
-    See L{Parser} for possible keyword arguments.
-
-    @return: The root L{Struct} object.
+    @return: The root L{Struct}
     """
-    return Parser(string.splitlines(), **kwargs).root()
+    return Parser(string.splitlines()).root()
 
 __all__ = ['parse_file', 'parse', 'struct', 'parser', 'tokenizer', 'errors']

@@ -1,21 +1,33 @@
-Version 0.3.?
-=============
+This is out of date, fix me!
 
-  - Extend Struct.update() to support recursive updates.
-  - Store charset info in Struct to aid converting unicode back to str
-  - Extend documentation to cover more of the API, particularly details
-    about Struct.expand and related operations.
+== Short term == 
+- @root links broken with sub-structs - maybe don't support @root
+  links at all?
+- Finish and document sub-struct @file/@package imports.
+- StructAttributeErrors should know where they came from
+- fix unicode bugs (make *everything* unicode)
+- More tests
+- Better names
+- docstrings for classes and methods
+- new style classes
+- create formal grammar for coil and make parser use it
+- Text format:
+  - make comments into a special attribute type
+  - Multi-line strings, maybe
+- Better serialization of Python objects to text format
+- Ability to compare structs
+- Write test for Struct.copy()
 
-Future Ideas ?
-==============
+== Long Term ==
 
-  - re-add support for @factory
-  - how to deal with package imports from zips/eggs/non-filesystem import?
-  - importing of directories
-  - Interfaces indicating schema information (maybe @provides, @type, or?)
-    - Ability to check for schema conformance
-    - UI for editing configuration ??
-  - Operators:
+- how to deal with package imports from zips/eggs/non-filesystem import?
+- importing of directories
+- Interfaces indicating schema information (@provides on structs),
+  which can be adapted to factories when @factory is missing
+  - Ability to check for schema conformance
+  - UI for editing configuration
+- Configuration mutation?
+- Operators:
     foo: {
         @extends: =..bar
         value: =..bar.value + 2

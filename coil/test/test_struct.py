@@ -51,152 +51,49 @@ class BasicTestCase(unittest.TestCase):
         self.assertEquals(list(struct.Struct(itemlist).iteritems()), itemlist)
 
     def testKeyMissing(self):
-        self.assertRaises(errors.KeyMissingError, lambda: self.struct['bogus'])
-        self.assertRaises(errors.KeyMissingError, self.struct.get, 'bad')
+        self.assertRaises(struct.errors.KeyMissingError,
+                lambda: self.struct['bogus'])
+        self.assertRaises(struct.errors.KeyMissingError,
+                lambda: self.struct.get('bad'))
 
     def testKeyType(self):
-        self.assertRaises(errors.KeyTypeError, lambda: self.struct[None])
-        self.assertRaises(errors.KeyTypeError, self.struct.get, None)
+        self.assertRaises(struct.errors.KeyTypeError,
+                lambda: self.struct[None])
+        self.assertRaises(struct.errors.KeyTypeError,
+                lambda: self.struct.get(None))
 
     def testKeyValue(self):
-        self.assertRaises(errors.KeyValueError,
-                self.struct.set, 'first#', '')
-        self.assertRaises(errors.KeyValueError,
-                self.struct.set, 'first..second', '')
+        self.assertRaises(struct.errors.KeyValueError,
+                lambda: self.struct['first#'])
+        self.assertRaises(struct.errors.KeyValueError,
+                lambda: self.struct.get('first..second'))
 
     def testDict(self):
         self.assertEquals(self.struct['first'].dict(), dict(self.data[0][1]))
 
-    def testSetShort(self):
-        s = struct.Struct()
-        s['new'] = True
-        self.assertEquals(s['new'], True)
-
-    def testSetLong(self):
-        s = struct.Struct()
-        s['new.sub'] = True
-        self.assertEquals(s['new.sub'], True)
-        self.assertEquals(s['new']['sub'], True)
-
-    def testCopy(self):
-        a = self.struct['first'].copy()
-        b = self.struct['first'].copy()
-        a['string'] = "this is a"
-        b['string'] = "this is b"
-        self.assertEquals(a['string'], "this is a")
-        self.assertEquals(b['string'], "this is b")
-        self.assertEquals(a['@root.string'], "this is a")
-        self.assertEquals(b['@root.string'], "this is b")
-        self.assertEquals(self.struct['first.string'], "something")
-
-    def testValidate(self):
-        self.assertEquals(struct.Struct.validate_key("foo"), True)
-        self.assertEquals(struct.Struct.validate_key("foo.bar"), False)
-        self.assertEquals(struct.Struct.validate_key("@root"), False)
-        self.assertEquals(struct.Struct.validate_key("#blah"), False)
-        self.assertEquals(struct.Struct.validate_path("foo"), True)
-        self.assertEquals(struct.Struct.validate_path("foo.bar"), True)
-        self.assertEquals(struct.Struct.validate_path("@root"), True)
-        self.assertEquals(struct.Struct.validate_path("#blah"), False)
-
 class ExpansionTestCase(unittest.TestCase):
 
-    def testExpand(self):
+    def testExpandSet(self):
         root = struct.Struct()
-        root["foo"] = "bbq"
-        root["bar"] = "omgwtf${foo}"
-        root.expand()
+        root.set("foo", "bbq")
+        root.set("bar", "omgwtf${foo}", True)
         self.assertEquals(root.get('bar'), "omgwtfbbq")
 
-    def testExpandItem(self):
+    def testExpandGet(self):
         root = struct.Struct()
-        root["foo"] = "bbq"
-        root["bar"] = "omgwtf${foo}"
+        root.set("foo", "bbq")
+        root.set("bar", "omgwtf${foo}")
         self.assertEquals(root.get('bar'), "omgwtf${foo}")
-        self.assertEquals(root.expanditem('bar'), "omgwtfbbq")
-
-    def testExpandDefault(self):
-        root = struct.Struct()
-        root["foo"] = "bbq"
-        root["bar"] = "omgwtf${foo}${baz}"
-        root.expand({'foo':"123",'baz':"456"})
-        self.assertEquals(root.get('bar'), "omgwtfbbq456")
-
-    def testExpandItemDefault(self):
-        root = struct.Struct()
-        root["foo"] = "bbq"
-        root["bar"] = "omgwtf${foo}${baz}"
-        self.assertEquals(root.get('bar'), "omgwtf${foo}${baz}")
-        self.assertEquals(root.expanditem('bar',
-            defaults={'foo':"123",'baz':"456"}), "omgwtfbbq456")
-
-    def testExpandIgnore(self):
-        root = struct.Struct()
-        root["foo"] = "bbq"
-        root["bar"] = "omgwtf${foo}${baz}"
-        root.expand(ignore_missing=True)
-        self.assertEquals(root.get('bar'), "omgwtfbbq${baz}")
-        root.expand(ignore_missing=('baz',))
-        self.assertEquals(root.get('bar'), "omgwtfbbq${baz}")
-
-    def testUnexpanded(self):
-        root = struct.Struct()
-        root["foo"] = "bbq"
-        root["bar"] = "omgwtf${foo}${baz}"
-        root.expand(ignore_missing=True)
-        self.assertEquals(root.unexpanded(), set(["baz"]))
-        self.assertEquals(root.unexpanded(True), set(["@root.baz"]))
-
-    def testExpandItemIgnore(self):
-        root = struct.Struct()
-        root["foo"] = "bbq"
-        root["bar"] = "omgwtf${foo}${baz}"
-        self.assertEquals(root.get('bar'), "omgwtf${foo}${baz}")
-        self.assertEquals(root.expanditem('bar', ignore_missing=('baz',)),
-                "omgwtfbbq${baz}")
+        self.assertEquals(root.get('bar', expand=True), "omgwtfbbq")
 
     def testExpandError(self):
         root = struct.Struct()
-        root["bar"] = "omgwtf${foo}"
-        self.assertRaises(KeyError, root.expand)
+        self.assertRaises(KeyError, root.set, "bar", "omgwtf${foo}", True)
+        root.set("bar", "omgwtf${foo}")
         self.assertEquals(root.get('bar'), "omgwtf${foo}")
+        self.assertRaises(KeyError, root.get, 'bar', expand=True)
 
-    def testExpandItemError(self):
+    def testExpandSilent(self):
         root = struct.Struct()
-        root["bar"] = "omgwtf${foo}"
-        self.assertEquals(root.get('bar'), "omgwtf${foo}")
-        self.assertRaises(KeyError, root.expanditem, 'bar')
-        self.assertEquals(root.get('bar'), "omgwtf${foo}")
-
-    def testExpandInList(self):
-        root = struct.Struct()
-        root["foo"] = "bbq"
-        root["bar"] = [ "omgwtf${foo}" ]
-        self.assertEquals(root['bar'][0], "omgwtf${foo}")
-        root.expand()
-        self.assertEquals(root['bar'][0], "omgwtfbbq")
-
-    def testExpandMixed(self):
-        root = struct.Struct()
-        root["foo"] = "${bar}"
-        self.assertEquals(root.expanditem("foo", {'bar': "a"}), "a")
-        root["bar"] = "b"
-        self.assertEquals(root.expanditem("foo", {'bar': "a"}), "b")
-
-    def testCopy(self):
-        a = struct.Struct()
-        a["foo"] = [ "omgwtf${bar}" ]
-        a["bar"] = "a"
-        b = a.copy()
-        b["bar"] = "b"
-        self.assertEquals(a.expanditem("foo"), [ "omgwtfa" ])
-        self.assertEquals(b.expanditem("foo"), [ "omgwtfb" ])
-        a.expand()
-        b.expand()
-        self.assertEquals(a.get("foo"), [ "omgwtfa" ])
-        self.assertEquals(b.get("foo"), [ "omgwtfb" ])
-
-class StringTestCase(unittest.TestCase):
-    def testNestedList(self):
-        root = struct.Struct({'x': ['a', ['b', 'c']]})
-        self.assertEquals(str(root), 'x: ["a" ["b" "c"]]')
+        root.set("bar", "omgwtf${foo}", True, True)
+        self.assertEquals(root.get('bar', None, True, True), "omgwtf${foo}")

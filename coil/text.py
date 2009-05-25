@@ -6,7 +6,7 @@
 
 from coil import parser, parse_file, errors
 
-ParseError = errors.CoilError
+ParseError = errors.CoilSyntaxError
 
 def fromSequence(iterOfStrings, filePath=None):
     """Load a Struct from a sequence of strings.

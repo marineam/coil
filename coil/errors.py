@@ -1,78 +1,60 @@
 # Copyright (c) 2008-2009 ITA Software, Inc.
 # See LICENSE.txt for details.
 
-class CoilError(Exception):
-    """Generic error for Coil"""
+class CoilStructError(Exception):
+    """Generic error for Struct"""
 
-    def __init__(self, location, reason):
-        self.reason = reason
-        self.location(location)
-        Exception.__init__(self, reason)
-
-    def location(self, location):
-        """Update the parser location for this exception.
-        This is useful for properly tagging L{StructError}s that are
-        raised during parse time.
-        """
-
-        self.filePath = location.filePath
-        self.line = location.line
-        self.column = location.column
+    def __init__(self, struct, msg):
+        self._class = struct.__class__.__name__
+        self._name = struct.path()
+        self.message = msg
+        Exception.__init__(self, msg)
 
     def __str__(self):
-        if self.filePath or self.line:
-            return "<%s:%s> %s" % (self.filePath, self.line, self.reason)
-        else:
-            return self.reason
+        return "<%s %s>: %s" % (self._class, self._name, self.message)
 
-class StructError(CoilError):
-    """Generic error for L{Struct} objects, used by various Key errors"""
+    def __repr__(self):
+        return "%s(<%s %s>, %s)" % (self._class, self._name, repr(self.message))
 
-    def __init__(self, struct, reason):
-        self.structPath = struct.path()
-        CoilError.__init__(self, struct, reason)
-
-    def __str__(self):
-        if self.filePath or self.line:
-            return "<%s %s:%s> %s" % (self.structPath,
-                    self.filePath, self.line, self.reason)
-        else:
-            return "<%s> %s" % (self.structPath, self.reason)
-
-class KeyMissingError(StructError, KeyError):
+class KeyMissingError(CoilStructError, KeyError):
     """The given key was not found"""
 
-    def __init__(self, struct, key):
-        msg = "The key %s was not found" % repr(key)
-        self.key = key
-        StructError.__init__(self, struct, msg)
+    def __init__(self, struct, key, path=None):
+        if path:
+            msg = "The key %s (in %s) was not found" % (repr(key), repr(path))
+        else:
+            msg = "The key %s was not found" % repr(key)
 
-class KeyTypeError(StructError, TypeError):
+        CoilStructError.__init__(self, struct, msg)
+
+class KeyTypeError(CoilStructError, TypeError):
     """The given key was not a string"""
 
     def __init__(self, struct, key):
-        msg = "Keys must be strings, got %s" % type(key)
-        StructError.__init__(self, struct, msg)
+        msg = "The key must be a string, got %s" % type(key)
+        CoilStructError.__init__(self, struct, msg)
 
-class KeyValueError(StructError, ValueError):
+class KeyValueError(CoilStructError, ValueError):
     """The given key contained invalid characters"""
 
     def __init__(self, struct, key):
-        msg = "The key %s contains invalid characters" % repr(key)
-        StructError.__init__(self, struct, msg)
+        msg = "The key %s is invalid" % repr(key)
+        CoilStructError.__init__(self, struct, msg)
 
-class ValueTypeError(StructError):
-    """The given item in a path was not the correct type"""
+class CoilSyntaxError(Exception):
+    def __init__(self, token, reason):
+        self.path = token.path
+        self.line = token.line
+        self.column = token.column
+        self.reason = reason
 
-    def __init__(self, struct, key, item_type, need_type):
-        msg = "the item at %s is a %s, expected %s" % (
-                repr(key), item_type.__name__, need_type.__name__)
-        StructError.__init__(self, struct, msg)
+        Exception.__init__(self, "%s: %s (%s:%d:%d)" %
+                (self.__class__.__name__, reason,
+                 self.path, self.line, self.column))
 
-class CoilParseError(CoilError):
-    """General error during parsing"""
+class CoilUnicodeError(CoilSyntaxError):
     pass
 
-class CoilUnicodeError(CoilParseError):
-    """Invalid unicode string"""
+class CoilDataError(CoilSyntaxError):
     pass
+
