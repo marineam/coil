@@ -16,12 +16,12 @@ from UserDict import DictMixin
 from coil import tokenizer, errors
 
 class Link(object):
-    """A temporary symbolic link to another item"""
+    """A temporary symbolic link to another item."""
 
     def __init__(self, path):
-        """
-        @param path: A path to point at.
-        @type path: string
+        """ 
+        :param path: A path to point at.
+        :type path: str
         """
         self.path = path
 
@@ -35,25 +35,24 @@ class Struct(tokenizer.Location, DictMixin):
     PATH = re.compile(r'^%s$' % tokenizer.Tokenizer.PATH_REGEX)
     EXPAND = re.compile(r'\$\{(%s)\}' % tokenizer.Tokenizer.PATH_REGEX)
 
-    #: Signal L{Struct.get} to raise an error if key is not found
+    #: Signal :meth:`get` to raise an error if key is not found
     _raise = object()
-    #: Signal L{Struct.set} to preserve location data for key
-    _keep = object()
+    #: Signal :meth:`set` to preserve location data for key
+    keep = object()
 
     # These first methods likely would need to be overridden by subclasses
 
     def __init__(self, base=(), container=None, name=None, location=None):
         """
-        @param base: A L{dict}, L{Struct}, or a list of (key, value)
-            tuples to initialize with. Any child C{dict} or C{Struct}
-            will be recursively copied as a new child C{Struct}
-            If order is important a list of key, value tuples may also
-        @param container: the parent C{Struct} if there is one.
-        @param name: The name of this C{Struct} in C{container}.
-        @param location: The where this C{Struct} is defined.
-            This is normally only used by the L{Parser}.
+        :param base: A *dict*, *Struct*, or a sequence of (key, value)
+            tuples to initialize with. Any child *dict* or *Struct*
+            will be recursively copied as a new child *Struct*.
+        :param container: the parent *Struct* if there is one.
+        :param name: The name of this *Struct* in *container*.
+        :param location: The where this *Struct* is defined.
+            This is normally only used by the :class:`Parser
+            <coil.parser.Parser>`.
         """
-
         assert isinstance(base, (list, tuple, dict, Struct))
 
         tokenizer.Location.__init__(self, location)
@@ -103,15 +102,16 @@ class Struct(tokenizer.Location, DictMixin):
         return self.get(path)
 
     def get(self, path, default=_raise):
-        """Get a value from any Struct in the tree.
+        """Get a value from any :class:`Struct` in the tree.
 
-        @param path: key or arbitrary path to fetch.
-        @param default: return this value if item is missing.
-            Note that the behavior here differs from a C{dict}. If
-            C{default} is unspecified and missing a L{KeyMissingError}
-            will be raised as __getitem__ does, not return C{None}.
+        :param path: key or arbitrary path to fetch.
+        :param default: return this value if item is missing.
+            Note that the behavior here differs from a *dict*.
+            If *default* is unspecified and missing a
+            :exc:`~errors.KeyMissingError` will be raised as
+            __getitem__ does, not return *None*.
 
-        @return: The fetched item or the value of C{default}.
+        :return: The fetched item or the value of *default*.
         """
 
         parent, key = self._get_next_parent(path)
@@ -136,13 +136,13 @@ class Struct(tokenizer.Location, DictMixin):
         return self.set(path, value)
 
     def set(self, path, value, location=None):
-        """Set a value in any Struct in the tree.
+        """Set a value in any :class:`Struct` in the tree.
 
-        @param path: key or arbitrary path to set.
-        @param value: value to save.
-        @param location: defines where this value was defined.
-            Set to L{Struct._keep} to not modify the location if it
-            is already set, this is used by L{Struct.expanditem}.
+        :param path: key or arbitrary path to set.
+        :param value: value to save.
+        :param location: defines where this value was defined.
+            Set to :data:`Struct.keep` to not modify the location if it
+            is already set, this is used by :meth:`expanditem`.
         """
 
         parent, key = self._get_next_parent(path, True)
@@ -178,14 +178,14 @@ class Struct(tokenizer.Location, DictMixin):
         return list(iter(self))
 
     def attributes(self):
-        """Alias for C{keys()}.
+        """Alias for :meth:`keys`.
 
         Only for compatibility with Coil <= 0.2.2.
         """
         return self.keys()
 
     def has_key(self, key):
-        """True if key is in this C{Struct}"""
+        """True if key is in this :class:`Struct`"""
         return key in self
 
     def iteritems(self):
@@ -194,18 +194,18 @@ class Struct(tokenizer.Location, DictMixin):
             yield key, self[key]
 
     def expand(self, defaults=(), ignore_missing=(), recursive=True, block=()):
-        """Expand all L{Link}s and sub-string variables in this and,
-        if recursion is enabled, all child L{Struct} objects. This is
-        normally called during parsing but may be useful if more
-        control is required.
+        """Expand all :class:`Link` and sub-string variables in this
+        and, if recursion is enabled, all child :class:`Struct`
+        objects. This is normally called during parsing but may be
+        useful if more control is required.
 
         This method modifies the tree!
 
-        @param defaults: See L{Struct.expandvalue}
-        @param ignore_missing: See L{Struct.expandvalue}
-        @param recursive: recursively expand sub-structs
-        @type recursive: bool
-        @param block: See L{Struct.expandvalue}
+        :param defaults: See :meth:`expandvalue`
+        :param ignore_missing: :meth:`expandvalue`
+        :param recursive: recursively expand sub-structs
+        :type recursive: *bool*
+        :param block: See :meth:`expandvalue`
         """
 
         abspath = self.path()
@@ -217,22 +217,22 @@ class Struct(tokenizer.Location, DictMixin):
 
         for key in self:
             value = self.expanditem(key, defaults, ignore_missing, block)
-            self.set(key, value, self._keep)
+            self.set(key, value, self.keep)
             if recursive and isinstance(value, Struct):
                 value.expand(defaults, ignore_missing, True, block)
 
     def expanditem(self, path, defaults=(), ignore_missing=(), block=()):
-        """Fetch and expand an item at the given path. All L{Link}
-        and sub-string variables will be followed in the process.
-        This method is a no-op if value is a L{Struct}, use the
-        L{Struct.expand} method instead.
+        """Fetch and expand an item at the given path. All :class:`Link`
+        and sub-string variables will be followed in the process. This
+        method is a no-op if value is a :class:`Struct`, use the
+        :meth:`Struct.expand` method instead.
 
         This method does not make any changes to the tree.
 
-        @param path: A key or arbitrary path to get.
-        @param defaults: See L{Struct.expandvalue}
-        @param ignore_missing: See L{Struct.expandvalue}
-        @param block: See L{Struct.expandvalue}
+        :param path: A key or arbitrary path to get.
+        :param defaults: See :meth:`expandvalue`
+        :param ignore_missing: See :meth:`expandvalue`
+        :param block: See :meth:`expandvalue`
         """
 
         parent, key = self._get_next_parent(path)
@@ -259,23 +259,25 @@ class Struct(tokenizer.Location, DictMixin):
             return parent.expanditem(key, defaults, ignore_missing, block)
 
     def expandvalue(self, value, defaults=(), ignore_missing=(), block=()):
-        """Use this L{Struct} to expand the given value. All L{Link}
-        and sub-string variables will be followed in the process.
-        This method is a no-op if value is a L{Struct}, use the
-        L{Struct.expand} method instead.
+        """Use this :class:`Struct` to expand the given value. All
+        :class:`Link` and sub-string variables will be followed in
+        the process. This method is a no-op if value is a
+        :class:`Struct`, use the :meth:`expand` method instead.
 
         This method does not make any changes to the tree.
 
-        @param value: Any value to expand, typically a L{Link} or string.
-        @param defaults: default values to use if undefined.
-        @type defaults: dict
-        @param ignore_missing: a set of keys that are ignored if
+        :param value: Any value to expand, typically a
+            :class:`Link` or string.
+        :param defaults: default values to use if undefined.
+        :type defaults: *dict*
+        :param ignore_missing: a set of keys that are ignored if
             undefined and not in defaults. If simply set to True
-            then all are ignored. Otherwise raise L{KeyMissingError}.
-        @type ignore_missing: True any container
-        @param block: a set of absolute paths that cannot be expanded.
+            then all are ignored. Otherwise raise
+            :exc:`~errors.KeyMissingError`.
+        :type ignore_missing: *True* or any container
+        :param block: a set of absolute paths that cannot be expanded.
             This is used internally to avoid circular references.
-        @type block: any container
+        :type block: any container
         """
 
         def expand_substr(match):
@@ -333,7 +335,7 @@ class Struct(tokenizer.Location, DictMixin):
 
     def unexpanded(self, absolute=False, recursive=True):
         """Find a set of all keys that have not been expanded.
-        This is generally only useful if L{Struct.expand} was
+        This is generally only useful if :meth:`expand` was
         run with the ignore_missing parameter was set to see got
         missed.
 
@@ -342,13 +344,13 @@ class Struct(tokenizer.Location, DictMixin):
         various expansion methods. Set absolute=True to return the
         full path for each key instead.
 
-        @param absolute: Enables absolute paths.
-        @type absolute: bool
-        @param recursive: recursively search sub-structs
-        @type recursive: bool
+        :param absolute: Enables absolute paths.
+        :type absolute: *bool*
+        :param recursive: recursively search sub-structs
+        :type recursive: *bool*
 
-        @return: unexpanded keys
-        @rtype: set
+        :return: unexpanded keys
+        :rtype: set
         """
 
         def normalize_key(key):
@@ -376,12 +378,12 @@ class Struct(tokenizer.Location, DictMixin):
         return unexpanded_list(self.values())
 
     def copy(self):
-        """Recursively copy this C{Struct}"""
+        """Recursively copy this :class:`Struct`"""
 
         return self.__class__(self)
 
     def dict(self):
-        """Recursively copy this C{Struct} into normal dict objects"""
+        """Recursively copy this :class:`Struct` into normal *dict* objects"""
 
         new = {}
         for key, value in self.iteritems():
@@ -396,7 +398,9 @@ class Struct(tokenizer.Location, DictMixin):
         return new
 
     def path(self, path=None):
-        """Get the absolute path of this C{Struct} or a relative path"""
+        """Get the absolute path of this :class:`Struct` if path is
+        *None*, otherwise the relative path from this :class:`Struct`
+        to the given path."""
 
         if path:
             parent, key = self._get_next_parent(path)
@@ -412,17 +416,17 @@ class Struct(tokenizer.Location, DictMixin):
                 return "%s.%s" % (self.container.path(), self.name)
 
     def string(self, strict=True, prefix=''):
-        """Convert this C{Struct} tree to the coil text format.
+        """Convert this :class:`Struct` tree to the coil text format.
 
         Note that if any value is a unicode string then this
         will return a unicode object rather than a str.
 
-        @param strict: If True then fail if the tree contains any
+        :param strict: If True then fail if the tree contains any
             values that cannot be represented in the coil text format.
-        @type strict: bool
-        @param prefix: Start each line with the given prefix.
+        :type strict: *bool*
+        :param prefix: Start each line with the given prefix.
             Used internally to properly intend sub-structs.
-        @type prefix: string
+        :type prefix: string
         """
 
         def stritem(item):
@@ -545,11 +549,11 @@ class Struct(tokenizer.Location, DictMixin):
         return parent, path
 
 
-#: For compatibility with Coil <= 0.2.2, use C{KeyError} or L{KeyMissingError}
+#: For compatibility with Coil <= 0.2.2, use KeyError or KeyMissingError
 StructAttributeError = errors.KeyMissingError
 
 class StructNode(object):
-    """For compatibility with Coil <= 0.2.2, use L{Struct} instead."""
+    """For compatibility with Coil <= 0.2.2, use :class:`Struct` instead."""
 
     def __init__(self, struct, container=None):
         # The container argument is now bogus,

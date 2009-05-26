@@ -89,6 +89,11 @@ exclude_trees = ['.build']
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = 'sphinx'
 
+# Options for autodoc
+# -------------------
+
+autoclass_content = 'both'
+
 
 # Options for HTML output
 # -----------------------

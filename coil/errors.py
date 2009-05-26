@@ -11,8 +11,8 @@ class CoilError(Exception):
 
     def location(self, location):
         """Update the parser location for this exception.
-        This is useful for properly tagging L{StructError}s that are
-        raised during parse time.
+        This is useful for properly tagging :exc:`StructError`
+        instances that are raised during parse time.
         """
 
         self.filePath = location.filePath
@@ -26,7 +26,9 @@ class CoilError(Exception):
             return self.reason
 
 class StructError(CoilError):
-    """Generic error for L{Struct} objects, used by various Key errors"""
+    """Generic error for :class:`coil.struct.Struct` objects,
+    used by various Key errors.
+    """
 
     def __init__(self, struct, reason):
         self.structPath = struct.path()

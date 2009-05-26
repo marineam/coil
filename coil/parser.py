@@ -146,14 +146,14 @@ class Parser(object):
     def root(self):
         """Get the root Struct.
 
-        :rtype: :class:`Struct <coil.struct.Struct>`
+        :rtype: :class:`~coil.struct.Struct`
         """
         return self._root
 
     def prototype(self):
         """Get the raw unexpanded prototype, you probably don't want this.
 
-        :rtype: :class:`StructPrototype <coil.parser.StructPrototype>`
+        :rtype: :class:`~coil.parser.StructPrototype`
         """
         return self._prototype
 

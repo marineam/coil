@@ -5,8 +5,8 @@ Developer Guide
 Overview
 ========
 
-The core of the Coil API is the :class:`Struct <coil.struct.Struct>`. It
-is a dict-like mapping object that knows its place in a tree and can
+The core of the Coil API is the :class:`~coil.struct.Struct`. It is a
+dict-like mapping object that knows its place in a tree and can
 reference items anywhere in the tree.
 
 Assume we have a file named example.coil with the following contents::
@@ -86,9 +86,21 @@ Struct API
 
 .. automodule:: coil.struct
     :members:
+    :undoc-members:
+    :inherited-members:
+    :show-inheritance:
+
 
 Parser API
 ==========
 
 .. automodule:: coil.parser
     :members:
+    :show-inheritance:
+
+Errors
+======
+
+.. automodule:: coil.errors
+    :members:
+    :show-inheritance:
