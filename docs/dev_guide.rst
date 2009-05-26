@@ -5,11 +5,11 @@ Developer Guide
 Overview
 ========
 
-The core of the Coil API is the L{Struct} object. It is a dict-like
-mapping object that knows its place in a tree and can reference items
-anywhere in the tree.
+The core of the Coil API is the :class:`Struct <coil.struct.Struct>`. It
+is a dict-like mapping object that knows its place in a tree and can
+reference items anywhere in the tree.
 
-Assume we have a file at /tmp/example.coil with the following contents::
+Assume we have a file named example.coil with the following contents::
 
     x: { y: {a: 2}
         z: "hello"
@@ -21,10 +21,28 @@ Assume we have a file at /tmp/example.coil with the following contents::
         ~z
     }
 
+.. Keep the following in sync with the above, I can't figure out how
+    to make things reference each-other auto-magically yet.
+.. testsetup:: example1
+
+    import coil
+    conf = coil.parse("""
+        x: { y: {a: 2}
+            z: "hello"
+            list: [1 2 3]
+        }
+        sub: {
+            @extends: ..x
+            y.b: 3
+            ~z
+        }
+        """)
+
 We can then inspect the structure just like nested dict objects:
 
-    >>> import coil
-    >>> conf = coil.parse_file("/tmp/example.coil")
+.. doctest:: example1
+
+    >>> conf = coil.parse_file("example.coil") # doctest: +SKIP
     >>> conf['x']['list']
     [1, 2, 3]
     >>> conf['x']['z']
@@ -42,6 +60,8 @@ We can then inspect the structure just like nested dict objects:
 
 Also, we can access and items based on absolute and relative paths as
 we can in the text format:
+
+.. doctest:: example1
 
     >>> conf['x.z']
     'hello'
