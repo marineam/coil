@@ -110,21 +110,20 @@ class StructPrototype(struct.Struct):
 
 
 class Parser(object):
-    """The standard coil parser"""
+    """The standard coil parser.
+
+    :param input_: An iterator over lines of input.
+        Typically a C{file} object or list of strings.
+    :param path: Path to input file, used for errors and @file imports.
+    :param encoding: Read strings using the given encoding. All
+        string values will be `unicode` objects rather than `str`.
+    :param expand: Enables/disables expansion of the parsed tree.
+    :param defaults: See :meth:`struct.Struct.expanditem`
+    :param ignore_missing: See :meth:`struct.Struct.expanditem`
+    """
 
     def __init__(self, input_, path=None, encoding=None,
             expand=True, defaults=(), ignore_missing=()):
-        """
-        :param input_: An iterator over lines of input.
-            Typically a C{file} object or list of strings.
-        :param path: Path to input file, used for errors and @file imports.
-        :param encoding: Read strings using the given encoding. All
-            string values will be `unicode` objects rather than `str`.
-        :param expand: Enables/disables expansion of the parsed tree.
-        :param defaults: See :meth:`struct.Struct.expanditem`
-        :param ignore_missing: See :meth:`struct.Struct.expanditem`
-        """
-
         if path:
             self._path = os.path.abspath(path)
         else:
