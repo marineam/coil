@@ -11,6 +11,7 @@ Contents
     introduction
     user_guide
     dev_guide
+    changelog
 
 Indices and tables
 ==================
