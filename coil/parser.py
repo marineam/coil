@@ -72,8 +72,8 @@ class StructPrototype(struct.Struct):
     def extends(self, base, relative=False):
         """Add a struct as another parent.
 
-        :param base: A Struct or dict to extend.
-        :param relative: Convert @root links to relative links.
+        @param base: A Struct or dict to extend.
+        @param relative: Convert @root links to relative links.
             Used when extending a Struct from another file.
         """
 
@@ -115,14 +115,14 @@ class Parser(object):
     def __init__(self, input_, path=None, encoding=None,
             expand=True, defaults=(), ignore_missing=()):
         """
-        :param input_: An iterator over lines of input.
+        @param input_: An iterator over lines of input.
             Typically a C{file} object or list of strings.
-        :param path: Path to input file, used for errors and @file imports.
-        :param encoding: Read strings using the given encoding. All
-            string values will be `unicode` objects rather than `str`.
-        :param expand: Enables/disables expansion of the parsed tree.
-        :param defaults: See :meth:`struct.Struct.expanditem`
-        :param ignore_missing: See :meth:`struct.Struct.expanditem`
+        @param path: Path to input file, used for errors and @file imports.
+        @param encoding: Read strings using the given encoding. All
+            string values will be C{unicode} objects rather than C{str}.
+        @param expand: Enables/disables expansion of the parsed tree.
+        @param defaults: See L{struct.Struct.expanditem}
+        @param ignore_missing: See L{struct.Struct.expanditem}
         """
 
         if path:
@@ -145,17 +145,11 @@ class Parser(object):
             self._root.expand(defaults, ignore_missing)
 
     def root(self):
-        """Get the root Struct.
-
-        :rtype: :class:`Struct <coil.struct.Struct>`
-        """
+        """Get the root Struct"""
         return self._root
 
     def prototype(self):
-        """Get the raw unexpanded prototype, you probably don't want this.
-
-        :rtype: :class:`StructPrototype <coil.parser.StructPrototype>`
-        """
+        """Get the raw unexpanded prototype, you probably don't want this."""
         return self._prototype
 
     def __str__(self):
