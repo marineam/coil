@@ -1,5 +1,9 @@
-API Overview
-============
+***************
+Developer Guide
+***************
+
+Overview
+========
 
 The core of the Coil API is the L{Struct} object. It is a dict-like
 mapping object that knows its place in a tree and can reference items
@@ -49,3 +53,22 @@ we can in the text format:
     >>> conf.set("sub.y.c", 4)
     >>> conf['sub']['y']
     Struct({'a': 2, 'b': 3, 'c': 4})
+
+Helper Functions
+================
+
+.. autofunction:: coil.parse
+
+.. autofunction:: coil.parse_file
+
+Struct API
+==========
+
+.. automodule:: coil.struct
+    :members:
+
+Parser API
+==========
+
+.. automodule:: coil.parser
+    :members:

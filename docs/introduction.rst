@@ -6,7 +6,7 @@ like L{Struct} objects. The format supports inheritance, allowing
 complicated configurations to be as compact as possible.
 
 Design Goals
-============
+------------
 
 General design/implementation goals, some have been met, others are
 still in progress.

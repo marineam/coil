@@ -1,5 +1,14 @@
+**********
+User Guide
+**********
+
+Whee
+
 Text Format
 ===========
+
+Data Types
+----------
 
 Coil provides the concept of a struct - an ordered list of key/value
 pairs. Basic types are True, False, None, integers, floats, unicode
@@ -14,11 +23,14 @@ strings and lists of basic types. Here we define a single struct::
 
 Whitespace doesn't matter, so these two are identical::
 
-    x: {a: 1}
+    fx: {a: 1}
 
     x: {
         a: 1
     }
+
+Inheritance
+-----------
 
 Structs can extends other structs: this means they inherit all
 attributes from that struct. Extending is done with a special
@@ -42,15 +54,6 @@ In this example y is the same as::
 
     y: {a: 1 b: 3}
 
-If the above example was a file called "foo.coil" and we did::
-
-    sub: {
-        @file: "foo.coil"
-        x: {c : 2}
-    }
-
-then sub.z  would be C{{c: 2 b: 4}}.
-
 For extending substructs there is a shorthand syntax. In this example
 y and z both extend x, and have identical contents::
 
@@ -66,6 +69,9 @@ y and z both extend x, and have identical contents::
             b: 3
         }
     }
+
+Importing Files
+---------------
 
 Structs can also be used to import files, either given a path on the
 filesystem, which can be absolute or relative to the current coil
