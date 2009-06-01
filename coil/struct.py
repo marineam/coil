@@ -193,7 +193,7 @@ class Struct(tokenizer.Location, DictMixin):
         for key in self:
             yield key, self[key]
 
-    def expand(self, defaults=(), ignore_missing=(), recursive=True, block=()):
+    def expand(self, defaults=(), ignore_missing=(), recursive=True, _block=()):
         """Expand all :class:`Link` and sub-string variables in this
         and, if recursion is enabled, all child :class:`Struct`
         objects. This is normally called during parsing but may be
@@ -205,23 +205,23 @@ class Struct(tokenizer.Location, DictMixin):
         :param ignore_missing: :meth:`expandvalue`
         :param recursive: recursively expand sub-structs
         :type recursive: *bool*
-        :param block: See :meth:`expandvalue`
+        :param _block: See :meth:`expandvalue`
         """
 
         abspath = self.path()
-        if abspath in block:
+        if abspath in _block:
             raise errors.StructError(self, "Circular reference to %s" % abspath)
 
-        block = list(block)
-        block.append(abspath)
+        _block = list(_block)
+        _block.append(abspath)
 
         for key in self:
-            value = self.expanditem(key, defaults, ignore_missing, block)
+            value = self.expanditem(key, defaults, ignore_missing, _block)
             self.set(key, value, self.keep)
             if recursive and isinstance(value, Struct):
-                value.expand(defaults, ignore_missing, True, block)
+                value.expand(defaults, ignore_missing, True, _block)
 
-    def expanditem(self, path, defaults=(), ignore_missing=(), block=()):
+    def expanditem(self, path, defaults=(), ignore_missing=(), _block=()):
         """Fetch and expand an item at the given path. All :class:`Link`
         and sub-string variables will be followed in the process. This
         method is a no-op if value is a :class:`Struct`, use the
@@ -232,19 +232,19 @@ class Struct(tokenizer.Location, DictMixin):
         :param path: A key or arbitrary path to get.
         :param defaults: See :meth:`expandvalue`
         :param ignore_missing: See :meth:`expandvalue`
-        :param block: See :meth:`expandvalue`
+        :param _block: See :meth:`expandvalue`
         """
 
         parent, key = self._get_next_parent(path)
 
         if parent is self:
             abspath = self.path(key)
-            if abspath in block:
+            if abspath in _block:
                 raise errors.StructError(self,
                         "Circular reference to %s" % abspath)
 
-            block = list(block)
-            block.append(abspath)
+            _block = list(_block)
+            _block.append(abspath)
 
             try:
                 value = self[key]
@@ -254,11 +254,11 @@ class Struct(tokenizer.Location, DictMixin):
                 else:
                     raise
 
-            return self.expandvalue(value, defaults, ignore_missing, block)
+            return self.expandvalue(value, defaults, ignore_missing, _block)
         else:
-            return parent.expanditem(key, defaults, ignore_missing, block)
+            return parent.expanditem(key, defaults, ignore_missing, _block)
 
-    def expandvalue(self, value, defaults=(), ignore_missing=(), block=()):
+    def expandvalue(self, value, defaults=(), ignore_missing=(), _block=()):
         """Use this :class:`Struct` to expand the given value. All
         :class:`Link` and sub-string variables will be followed in
         the process. This method is a no-op if value is a
@@ -275,8 +275,8 @@ class Struct(tokenizer.Location, DictMixin):
             then all are ignored. Otherwise raise
             :exc:`~errors.KeyMissingError`.
         :type ignore_missing: *True* or any container
-        :param block: a set of absolute paths that cannot be expanded.
-            This is used internally to avoid circular references.
+        :param _block: a set of absolute paths that cannot be expanded.
+            This is only for use internally to avoid circular references.
         :type block: any container
         """
 
@@ -284,7 +284,7 @@ class Struct(tokenizer.Location, DictMixin):
             subkey = match.group(1)
             try:
                 subval = self.expanditem(subkey,
-                        defaults, ignore_missing, block)
+                        defaults, ignore_missing, _block)
             except errors.KeyMissingError, ex:
                 if ignore_missing is True or ex.key in ignore_missing:
                     return match.group(0)
@@ -296,7 +296,7 @@ class Struct(tokenizer.Location, DictMixin):
         def expand_link(link):
             try:
                 subval = self.expanditem(link.path,
-                        defaults, ignore_missing, block)
+                        defaults, ignore_missing, _block)
             except errors.KeyMissingError, ex:
                 if ignore_missing is True or ex.key in ignore_missing:
                     return link
