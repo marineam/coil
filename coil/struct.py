@@ -507,6 +507,9 @@ class Struct(tokenizer.Location, DictMixin):
             else:
                 parent = self
                 path = path[5:]
+        elif "." not in path:
+            # Quick exit for the simple case...
+            return self, path
         elif path.startswith(".."):
             if self.container:
                 parent = self.container
@@ -516,8 +519,6 @@ class Struct(tokenizer.Location, DictMixin):
         elif path.startswith("."):
             parent = self
             path = path[1:]
-        elif "." not in path:
-            parent = self
         else:
             # check for mid-path parent references
             if ".." in path:
