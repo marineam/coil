@@ -78,6 +78,16 @@ class BasicTestCase(unittest.TestCase):
         self.assertEquals(s['new.sub'], True)
         self.assertEquals(s['new']['sub'], True)
 
+    def testSetSubStruct(self):
+        s = struct.Struct({'sub': {'x': '${y}'}})
+        self.assertRaises(KeyError, s.expand)
+        s['sub.y'] = "zap"
+        s.expand()
+        self.assertEquals(s['sub.x'], "zap")
+        self.assertEquals(s['sub.y'], "zap")
+        self.assertEquals(s['sub']['x'], "zap")
+        self.assertEquals(s['sub']['y'], "zap")
+
     def testCopy(self):
         a = self.struct['first'].copy()
         b = self.struct['first'].copy()
