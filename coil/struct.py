@@ -114,7 +114,13 @@ class Struct(tokenizer.Location, DictMixin):
         :return: The fetched item or the value of *default*.
         """
 
-        parent, key = self._get_next_parent(path)
+        try:
+            parent, key = self._get_next_parent(path)
+        except KeyError:
+            if default is self._raise:
+                raise
+            else:
+                return default
 
         if parent is self:
             if not key:

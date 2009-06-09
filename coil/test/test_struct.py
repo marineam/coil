@@ -34,6 +34,7 @@ class BasicTestCase(unittest.TestCase):
 
     def testGetDefault(self):
         self.assertEquals(self.struct.get('bogus', "awesome"), "awesome")
+        self.assertEquals(self.struct.get('bogus.sub', "awesome"), "awesome")
 
     def testGetPath(self):
         self.assertEquals(self.struct.get('first.int'), 1)
