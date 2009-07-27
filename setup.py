@@ -9,5 +9,6 @@ setup(
     description = 'A powerful configuration language',
     license = 'MIT',
     packages = ['coil', 'coil.test'],
+    package_data={"coil.test":["*.coil"]},
     scripts = ['bin/coildump'],
     )
