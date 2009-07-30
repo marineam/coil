@@ -467,7 +467,7 @@ class Struct(tokenizer.Location, DictMixin):
                 if child:
                     result = "%s{\n%s\n%s}\n" % (result, child, prefix)
                 else:
-                    result += "{}"
+                    result += "{}\n"
             else:
                 result = "%s%s\n" % (result, stritem(val))
 
