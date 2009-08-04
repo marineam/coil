@@ -113,11 +113,11 @@ struct wins. For example, the following::
     x: { a: 1 }
     y: { a: 2 b: 3}
     z: {
-        @extends: ..a
-        @extends: ..b
+        @extends: ..x
+        @extends: ..y
     }
 
-is equivalent to:
+is equivalent to::
 
     x: { a: 1 }
     y: { a: 2 b: 3}
