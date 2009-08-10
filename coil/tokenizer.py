@@ -46,8 +46,9 @@ class Token(Location):
 class Tokenizer(Location):
     """Split input into basic tokens"""
 
-    # Note: keys may start with - but must be followed by a letter
-    KEY_REGEX = r'-?[a-zA-Z_][\w-]*'
+    # Note: Keys may start with any number of -'s but must be followed by a
+    #       letter
+    KEY_REGEX = r'-*[a-zA-Z_][\w-]*'
     PATH_REGEX = r'(@|\.\.+)?%s(\.%s)*' % (KEY_REGEX, KEY_REGEX)
 
     PATH = re.compile(PATH_REGEX)
