@@ -162,6 +162,50 @@ etc. unwanted attributes can be deleted by prefixing the name with a
         ~x  # sub now has no attribute "x"
     }
 
+Updating vs. Replacing Structs
+------------------------------
+
+When modifying a child structure that has been inherited it is important
+to note the difference between adding/modifying attributes inside of it
+and replacing it entirely. For example::
+
+    base: {
+        sub: {
+            x: 1
+            y: 2
+        }
+    }
+    a: {
+        @extends: ..base
+        sub.z: 3
+    }
+    b: {
+        @extends: ..base
+        sub: {
+            z: 3
+        }
+    }
+
+The first structure (``a``) adds a new attribute to ``sub``. The final
+result will be::
+
+    a: {
+        sub: {
+            x: 1
+            y: 2
+            z: 3
+        }
+    }
+
+On the other hand, ``b`` entirely replaces ``sub`` so the result will
+be::
+
+    b: {
+        sub: {
+            z: 3
+        }
+    }
+
 References
 ----------
 

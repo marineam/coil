@@ -2,12 +2,23 @@
 Change Log
 **********
 
-Version 0.3.6 (????-??-??)
+Version 0.3.7 (2009-??-??)
+==========================
+
+- Minor bug and documentation fixes
+
+Version 0.3.6 (2009-06-10)
 ==========================
 
 - Move development to http://code.google.com/p/coil/.
 
 - Massive documentation redo, converting to sphinx and lots of updates.
+
+- Slight performance improvement in Struct._get_path_parent()
+
+- Improvements to the coildump script, allowing default values.
+
+- Other minor bug fixes.
 
 Version 0.3.5 (2009-05-06)
 ==========================
