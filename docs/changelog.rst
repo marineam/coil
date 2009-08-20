@@ -2,7 +2,15 @@
 Change Log
 **********
 
-Version 0.3.7 (2009-??-??)
+Version 0.3.8 (2009-08-20)
+==========================
+
+- Fix expansion of "${@root.foo}" references in imported files.
+
+- Extra version bump because setting the version previously to 0.3.7.pre
+  screws up depending on the above fix by testing the version.
+
+Version 0.3.7 (2009-08-20)
 ==========================
 
 - Minor bug and documentation fixes
