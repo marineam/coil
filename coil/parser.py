@@ -77,6 +77,29 @@ class StructPrototype(struct.Struct):
             Used when extending a Struct from another file.
         """
 
+        def relativeize(path):
+            if not path.startswith("@root"):
+                return path
+            else:
+                new = ""
+                container = base
+                while container.container:
+                    container = container.container
+                    new += "."
+                new += path[5:]
+                return new
+
+        def relativestr(match):
+            return "${%s}" % relativeize(match.group(1))
+
+        def relativelist(old):
+            new = []
+            for item in old:
+                if isinstance(item, basestring):
+                    item = struct.Struct.EXPAND.sub(relativestr, item)
+                new.append(item)
+            return new
+
         for key, value in base.iteritems():
             if key in self or key in self._deleted:
                 continue
@@ -88,15 +111,13 @@ class StructPrototype(struct.Struct):
                 value = new
 
             # Convert absolute to relative links if required
-            if (relative and isinstance(value, struct.Link) and
-                    value.path.startswith("@root")):
-                path = ""
-                container = base
-                while container.container:
-                    container = container.container
-                    path += "."
-                path += value.path[5:]
-                value.path = path
+            if relative:
+                if isinstance(value, struct.Link):
+                    value.path = relativeize(value.path)
+                elif isinstance(value, basestring):
+                    value = struct.Struct.EXPAND.sub(relativestr, value)
+                elif isinstance(value, list):
+                    value = relativelist(value)
 
             self._secondary_values[key] = value
             self._secondary_order.append(key)
