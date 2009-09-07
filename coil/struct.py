@@ -101,9 +101,6 @@ class Struct(tokenizer.Location, DictMixin):
 
     # The remaining methods likely do not need to be overridden in subclasses
 
-    def __getitem__(self, path):
-        return self.get(path)
-
     def get(self, path, default=_raise):
         """Get a value from any :class:`Struct` in the tree.
 
@@ -116,6 +113,13 @@ class Struct(tokenizer.Location, DictMixin):
 
         :return: The fetched item or the value of *default*.
         """
+
+        # Attempt a get right off the bat without any parsing or
+        # other intelligence to optimize for the common case
+        try:
+            return self._get(key)
+        except:
+            pass
 
         try:
             parent, key = self._get_next_parent(path)
@@ -141,8 +145,7 @@ class Struct(tokenizer.Location, DictMixin):
 
         return value
 
-    def __setitem__(self, path, value):
-        return self.set(path, value)
+    __getitem__ = get
 
     def set(self, path, value, location=None):
         """Set a value in any :class:`Struct` in the tree.
@@ -167,6 +170,8 @@ class Struct(tokenizer.Location, DictMixin):
             self._set(key, value)
         else:
             parent.set(key, value, location)
+
+    __setitem__ = set
 
     def __delitem__(self, path):
         parent, key = self._get_next_parent(path)
