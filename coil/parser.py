@@ -69,6 +69,9 @@ class StructPrototype(struct.Struct):
         for key in self._order:
             yield key
 
+    def __len__(self):
+        return len(self._values) + len(self._secondary_values)
+
     def extends(self, base, relative=False):
         """Add a struct as another parent.
 

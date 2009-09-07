@@ -96,6 +96,9 @@ class Struct(tokenizer.Location, DictMixin):
         for key in self._order:
             yield key
 
+    def __len__(self):
+        return len(self._values)
+
     # The remaining methods likely do not need to be overridden in subclasses
 
     def __getitem__(self, path):
