@@ -15,6 +15,28 @@ from UserDict import DictMixin
 
 from coil import tokenizer, errors
 
+class Path(tuple):
+
+    def __new__(cls, path):
+        if isinstance(path, Path):
+            return path
+        elif isinstance(path, basestring):
+            path = path.split('.')
+
+        assert len(path)
+        return super(Path, cls).__new__(cls, path)
+
+    def relative(self, container):
+        if self[0] != "@root":
+            return self
+
+        i = 1
+        while container
+
+        for i, key in xrange(1, len(self)):
+
+
+
 class Link(object):
     """A temporary symbolic link to another item."""
 
@@ -27,6 +49,78 @@ class Link(object):
 
     def __repr__(self):
         return "%s(%s)" % (self.__class__.__name__, repr(self.path))
+
+class StructMixin(object):
+
+    def _find_links(self, key, value):
+        if isinstance(value, basestring):
+            value = [Link(m.group(1)) for m in self.EXPAND.finditer(value)]
+        elif not isinstnace(value, Link):
+            value = None
+
+        if value:
+            self._links[key] = value
+        elif key in self._links:
+            del self._links[key]
+
+    def _follow_links(self):
+
+    def _relative_links(self):
+
+        def relativeize(path):
+            if not path.startswith("@root"):
+                return path
+            else:
+                new = ""
+                container = base
+                while container.container:
+                    container = container.container
+                    new += "."
+                new += path[5:]
+                return new
+
+        if
+
+        def relativestr(match):
+            return "${%s}" % relativeize(match.group(1))
+
+        def relativelist(old):
+            new = []
+            for item in old:
+                if isinstance(item, basestring):
+                    item = struct.Struct.EXPAND.sub(relativestr, item)
+                new.append(item)
+            return new
+
+        for key, value in base.iteritems():
+            if key in self or key in self._deleted:
+                continue
+
+            # Copy child Structs so that they can be edited independently
+            if isinstance(value, struct.Struct):
+                new = self.__class__(container=self, name=key)
+                new.extends(value, relative)
+                value = new
+
+            # Convert absolute to relative links if required
+            if relative:
+                if isinstance(value, struct.Link):
+                    value.path = relativeize(value.path)
+                elif isinstance(value, basestring):
+                    value = struct.Struct.EXPAND.sub(relativestr, value)
+                elif isinstance(value, list):
+                    value = relativelist(value)
+
+            self._secondary_values[key] = value
+            self._secondary_order.append(key)
+
+
+
+class StructList(StructMixin, list):
+
+    def __init__(self, sequence=(), container=None):
+
+        for it
 
 class Struct(tokenizer.Location, DictMixin):
     """A dict-like object for use in trees."""
@@ -60,6 +154,7 @@ class Struct(tokenizer.Location, DictMixin):
         self.name = name
         self._values = {}
         self._order = []
+        self._links = {}
 
         if isinstance(base, (list, tuple)):
             base_iter = iter(base)
@@ -166,6 +261,8 @@ class Struct(tokenizer.Location, DictMixin):
             if isinstance(value, Struct) and not value.container:
                 value.container = self
                 value.name = key
+
+
 
             self._set(key, value)
         else:
