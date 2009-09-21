@@ -336,6 +336,10 @@ class Struct(tokenizer.Location, DictMixin):
         for key in defaults:
             assert "." not in key
 
+        # allow ignore_missing=False
+        if ignore_missing is False:
+            ignore_missing = ()
+
         if isinstance(value, Struct):
             pass
         elif isinstance(value, basestring):
@@ -383,9 +387,9 @@ class Struct(tokenizer.Location, DictMixin):
                 elif isinstance(item, Link):
                     keys.add(normalize_key(item.path))
                 elif isinstance(item, (list, tuple)):
-                    keys += unexpanded_list(item)
+                    keys.update(unexpanded_list(item))
                 elif recursive and isinstance(item, Struct):
-                    keys += item.unexpanded(absolute)
+                    keys.update(item.unexpanded(absolute))
 
             return keys
 
