@@ -114,13 +114,6 @@ class Struct(tokenizer.Location, DictMixin):
         :return: The fetched item or the value of *default*.
         """
 
-        # Attempt a get right off the bat without any parsing or
-        # other intelligence to optimize for the common case
-        try:
-            return self._get(key)
-        except:
-            pass
-
         try:
             parent, key = self._get_next_parent(path)
         except KeyError:
