@@ -4,7 +4,7 @@
 
 """Coil: A Configuration Library."""
 
-__version_info__ = (0,3,10)
+__version_info__ = (0,3,11)
 __version__ = ".".join([str(x) for x in __version_info__])
 __all__ = ['struct', 'parser', 'tokenizer', 'errors']
 
