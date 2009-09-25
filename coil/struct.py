@@ -17,124 +17,189 @@ from coil import tokenizer, errors
 
 class Path(tuple):
 
+    KEY = re.compile(r'^%s$' % tokenizer.Tokenizer.KEY_REGEX)
+    PATH = re.compile(r'^%s$' % tokenizer.Tokenizer.PATH_REGEX)
+
     def __new__(cls, path):
         if isinstance(path, Path):
             return path
         elif isinstance(path, basestring):
-            path = path.split('.')
+            path = cls._parse(path)
+        else:
+            raise errors.KeyTypeError(self, path)
 
-        assert len(path)
         return super(Path, cls).__new__(cls, path)
 
-    def relative(self, container):
-        if self[0] != "@root":
-            return self
+    def __str__(self):
+        # Insert the self reference . if needed
+        if not self[0]:
+            pretty = [""] + list(self)
+        else:
+            pretty = self
 
-        i = 1
-        while container
+        return ".".join(pretty)
 
-        for i, key in xrange(1, len(self)):
+    @classmethod
+    def _parse(cls, path):
+        new = path.split(path, ".")
 
+        # Remove the self reference . if it is there
+        if not new[0]:
+            new.pop(0)
 
+        for i in xrange(new):
+            if new[i]:
+                break
 
-class Link(object):
-    """A temporary symbolic link to another item."""
+        for i in xrange(i, new):
+            if not new[i]:
+                raise errors.KeyValueError(self, path)
+            if not cls.KEY.match(new[i])
+                raise errors.KeyValueError(self, path)
 
-    def __init__(self, path):
-        """ 
-        :param path: A path to point at.
-        :type path: str
+        return new
+
+    @classmethod
+    def validate_key(cls, key):
+        """Check if the given key is valid.
+
+        :rtype: bool
         """
-        self.path = path
+        return bool(cls.KEY.match(key))
 
-    def __repr__(self):
-        return "%s(%s)" % (self.__class__.__name__, repr(self.path))
+    @classmethod
+    def validate_path(cls, path):
+        """Check if the given path is valid.
 
-class StructMixin(object):
+        :rtype: bool
+        """
+        return bool(cls.PATH.match(path))
 
-    def _find_links(self, key, value):
-        if isinstance(value, basestring):
-            value = [Link(m.group(1)) for m in self.EXPAND.finditer(value)]
-        elif not isinstnace(value, Link):
-            value = None
-
-        if value:
-            self._links[key] = value
-        elif key in self._links:
-            del self._links[key]
-
-    def _follow_links(self):
-
-    def _relative_links(self):
-
-        def relativeize(path):
-            if not path.startswith("@root"):
-                return path
-            else:
-                new = ""
-                container = base
-                while container.container:
-                    container = container.container
-                    new += "."
-                new += path[5:]
-                return new
-
-        if
-
-        def relativestr(match):
-            return "${%s}" % relativeize(match.group(1))
-
-        def relativelist(old):
-            new = []
-            for item in old:
-                if isinstance(item, basestring):
-                    item = struct.Struct.EXPAND.sub(relativestr, item)
-                new.append(item)
-            return new
-
-        for key, value in base.iteritems():
-            if key in self or key in self._deleted:
-                continue
-
-            # Copy child Structs so that they can be edited independently
-            if isinstance(value, struct.Struct):
-                new = self.__class__(container=self, name=key)
-                new.extends(value, relative)
-                value = new
-
-            # Convert absolute to relative links if required
-            if relative:
-                if isinstance(value, struct.Link):
-                    value.path = relativeize(value.path)
-                elif isinstance(value, basestring):
-                    value = struct.Struct.EXPAND.sub(relativestr, value)
-                elif isinstance(value, list):
-                    value = relativelist(value)
-
-            self._secondary_values[key] = value
-            self._secondary_order.append(key)
-
-
-
-class StructList(StructMixin, list):
-
-    def __init__(self, sequence=(), container=None):
-
-        for it
-
-class Struct(tokenizer.Location, DictMixin):
-    """A dict-like object for use in trees."""
-
-    KEY = re.compile(r'^%s$' % tokenizer.Tokenizer.KEY_REGEX)
-    PATH = re.compile(r'^%s$' % tokenizer.Tokenizer.PATH_REGEX)
-    EXPAND = re.compile(r'\$\{(%s)\}' % tokenizer.Tokenizer.PATH_REGEX)
+class Element(tokenizer.Location):
 
     #: Signal :meth:`get` to raise an error if key is not found
     _raise = object()
-    #: Signal :meth:`set` to preserve location data for key
-    keep = object()
 
-    # These first methods likely would need to be overridden by subclasses
+    def __init__(self, container=None, name=None, location=None):
+        super(Element, self).__init__(location)
+        self.container = container
+        self.name = name
+        self.done = False
+
+    def get(self, path, default=Element._raise):
+        raise Exception("unimplemented")
+
+    def expand(self):
+        self.done = True
+
+    def _get_path(self, path, default):
+        if not isinstnace(path, Path):
+            path = Path(path)
+
+        current = self
+        for key in path:
+            if not key:
+                current = current.container
+                if not current:
+                    raise errors.StructError(self, "Reference past root: %s" % path)
+            elif key == "@root":
+                while current.container:
+                    current = current.container
+            else:
+                current = current.get(key, default)
+
+        return current
+
+
+class Link(Element):
+
+    def __init__(self, taget, container=None, name=None, location=None):
+        super(Link, self).__init__(container, name, location)
+        self.target = target
+        self.value = None
+
+    def __str__(self):
+        return "<Link %s: %s>" % (self.path(), self.target)
+
+    def get(self, path, default=Element._raise):
+        if self.done:
+            value = self.value
+        else:
+            value = self.container.get(path, default)
+
+        if path:
+            value = value.get(path, default)
+
+        return value
+
+    def expand(self):
+        if not self.done:
+            self.value = self.container.get(self.target)
+            super(Link, self).expand()
+
+class Value(Element):
+
+    _EXPAND = re.compile(r'\$\{(%s)\}' % tokenizer.Tokenizer.PATH_REGEX)
+
+    def __init__(self, value, container=None, name=None, location=None):
+        super(Value, self).__init__(container, name, location)
+
+        if not isinstance(value, (basestring, int, float, None.__class__)):
+            raise Exception("TODO")
+
+        self.value = value
+
+    def __str__(self):
+        return "<Value %s: %r>" % (self.path(), self.value)
+
+    def get(self, path, default=Element._raise):
+        assert not path
+        value = self.value
+
+    def expand(self):
+        def expand_substr(match):
+            subkey = match.group(1)
+            try:
+                subval = self.container.get(subkey)
+                        defaults, ignore_missing, _block)
+            except errors.KeyMissingError, ex:
+                if ignore_missing is True or ex.key in ignore_missing:
+                    return match.group(0)
+                else:
+                    raise
+
+            if not isinstance(subval, basestring):
+                subval = str(subval)
+
+            return subval
+
+        if not self.done:
+            if isinstance(self.value, basestring):
+                self.value = self._EXPAND.sub(expand_substr, self.value)
+            super(Value, self).expand()
+
+class Delete(Element):
+
+    def get(self, path, default=Element._raise):
+        assert not path
+        if default is self._raise:
+            raise errors.KeyMissingError(self, key)
+        else:
+            return default
+
+    def expand(self):
+        if not self.done:
+            self.container.get(self.target)
+            super(Link, self).expand()
+
+class List(Element):
+
+    def __init__(self, container, name, seq=(), location=None):
+        super(List, self).__init__(container, name, location)
+        raise Exception("TODO")
+
+class Struct(Element, DictMixin):
+    """A dict-like object for use in trees."""
 
     def __init__(self, base=(), container=None, name=None, location=None):
         """
@@ -147,19 +212,15 @@ class Struct(tokenizer.Location, DictMixin):
             This is normally only used by the :class:`Parser
             <coil.parser.Parser>`.
         """
-        assert isinstance(base, (list, tuple, dict, Struct))
 
-        tokenizer.Location.__init__(self, location)
-        self.container = container
-        self.name = name
+        super(Struct, self).__init__(container, name, location)
         self._values = {}
         self._order = []
-        self._links = {}
 
-        if isinstance(base, (list, tuple)):
-            base_iter = iter(base)
-        else:
+        if hasattr(base, 'iteritems'):
             base_iter = base.iteritems()
+        else:
+            base_iter = iter(base)
 
         for key, value in base_iter:
             if isinstance(value, (Struct, dict)):
@@ -168,33 +229,15 @@ class Struct(tokenizer.Location, DictMixin):
                 value = list(value)
             self[key] = value
 
-    def _get(self, key):
-        return self._values[key]
-
-    def _set(self, key, value):
-        self._values[key] = value
-        if key not in self._order:
-            self._order.append(key)
-
-    def _del(self, key):
-        del self._values[key]
-        try:
-            self._order.remove(key)
-        except ValueError:
-            raise KeyError
-
     def __contains__(self, key):
         return key in self._values
 
     def __iter__(self):
         """Iterate over the ordered list of keys."""
-        for key in self._order:
-            yield key
+        iter(self._order)
 
     def __len__(self):
         return len(self._values)
-
-    # The remaining methods likely do not need to be overridden in subclasses
 
     def get(self, path, default=_raise):
         """Get a value from any :class:`Struct` in the tree.
@@ -209,36 +252,21 @@ class Struct(tokenizer.Location, DictMixin):
         :return: The fetched item or the value of *default*.
         """
 
-        # Attempt a get right off the bat without any parsing or
-        # other intelligence to optimize for the common case
-        try:
-            return self._get(key)
-        except:
-            pass
+        if not isinstance(path, Path):
+            path = Path
 
-        try:
-            parent, key = self._get_next_parent(path)
-        except KeyError:
-            if default is self._raise:
-                raise
-            else:
-                return default
-
-        if parent is self:
-            if not key:
-                value = self
-            else:
-                try:
-                    value = self._get(key)
-                except KeyError:
-                    if default is self._raise:
-                        raise errors.KeyMissingError(self, key)
-                    else:
-                        value = default
+        if not path:
+            return self
+        elif len(path) == 1:
+            try:
+                return self._values[path[0]]
+            except KeyError:
+                if default is self._raise:
+                    raise errors.KeyMissingError(self, key)
+                else:
+                    return default
         else:
-            value = parent.get(key, default)
-
-        return value
+            return self._get_path(path, default)
 
     __getitem__ = get
 
@@ -252,41 +280,35 @@ class Struct(tokenizer.Location, DictMixin):
             is already set, this is used by :meth:`expanditem`.
         """
 
-        parent, key = self._get_next_parent(path, True)
+        if not isinstance(path, Path):
+            path = Path
 
-        if parent is self:
-            if not key or not self.KEY.match(key):
-                raise errors.KeyValueError(self, key)
-
-            if isinstance(value, Struct) and not value.container:
+        if not path:
+            assert 0
+        elif len(path) == 1:
+            if not isinstance(value, Element):
+                value = Value(value, self, path[0], location)
+            elif not value.container:
                 value.container = self
-                value.name = key
+                value.name = path[0]
 
+            self._values[key] = value
+            if key not in self._order:
+                self._order.append(key)
 
-
-            self._set(key, value)
+            self.done = False
         else:
-            parent.set(key, value, location)
+            parent = self._get_path(path[:-1])
+            parent.set(path[-1], value, location)
 
     __setitem__ = set
 
     def __delitem__(self, path):
-        parent, key = self._get_next_parent(path)
-
-        if parent is self:
-            if not key:
-                raise errors.KeyValueError(path)
-
-            try:
-                self._del(path)
-            except KeyError:
-                raise errors.KeyMissingError(self, key)
-        else:
-            del parent[key]
+        self.set(path, Delete())
 
     def keys(self):
         """Get an ordered list of keys."""
-        return list(iter(self))
+        return list(self)
 
     def attributes(self):
         """Alias for :meth:`keys`.
@@ -318,6 +340,9 @@ class Struct(tokenizer.Location, DictMixin):
         :type recursive: *bool*
         :param _block: See :meth:`expandvalue`
         """
+
+        for key, value in self._values.iteritems():
+            value.expand()
 
         abspath = self.path()
         if abspath in _block:
