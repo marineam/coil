@@ -61,6 +61,13 @@ class Struct(tokenizer.Location, DictMixin):
         self._values = {}
         self._order = []
 
+        # this has to be compared to none, 
+        # because Struct overrides len
+        if name and container is not None:
+            self._path = "%s.%s" % (container._path, name)
+        else:
+            self._path = "@root" 
+        
         if isinstance(base, (list, tuple)):
             base_iter = iter(base)
         else:
@@ -68,7 +75,7 @@ class Struct(tokenizer.Location, DictMixin):
 
         for key, value in base_iter:
             if isinstance(value, (Struct, dict)):
-                value = self.__class__(value)
+                value = self.__class__(value, self, key)
             elif isinstance(value, list):
                 value = list(value)
             self[key] = value
@@ -139,6 +146,12 @@ class Struct(tokenizer.Location, DictMixin):
         return value
 
     __getitem__ = get
+    
+    def _update_path(self, path):
+        self._path = path
+        for key, node in self.iteritems():
+            if isinstance(node, Struct):
+                node._update_path("%s.%s"  % (path, key))
 
     def set(self, path, value, location=None):
         """Set a value in any :class:`Struct` in the tree.
@@ -156,9 +169,10 @@ class Struct(tokenizer.Location, DictMixin):
             if not key or not self.KEY.match(key):
                 raise errors.KeyValueError(self, key)
 
-            if isinstance(value, Struct) and not value.container:
+            if isinstance(value, Struct) and value.container is None:
                 value.container = self
                 value.name = key
+                value._update_path("%s.%s" % (parent._path, key))
 
             self._set(key, value)
         else:
@@ -417,14 +431,11 @@ class Struct(tokenizer.Location, DictMixin):
             parent, key = self._get_next_parent(path)
 
             if parent is self:
-                return "%s.%s" % (self.path(), key)
+                return "%s.%s" % (self._path, key)
             else:
                 return parent.path(path)
         else:
-            if not self.container:
-                return "@root"
-            else:
-                return "%s.%s" % (self.container.path(), self.name)
+            return self._path
 
     def string(self, strict=True, prefix=''):
         """Convert this :class:`Struct` tree to the coil text format.

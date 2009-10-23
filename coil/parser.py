@@ -241,7 +241,7 @@ class Parser(object):
         token = self._tokenizer.next('{')
 
         try:
-            new = StructPrototype()
+            new = StructPrototype(container=container, name=name)
             container[name] = new
         except errors.StructError, ex:
             ex.location(token)
