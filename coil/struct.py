@@ -433,7 +433,7 @@ class Struct(tokenizer.Location, DictMixin):
             if parent is self:
                 return "%s.%s" % (self._path, key)
             else:
-                return parent.path(path)
+                return parent.path(key)
         else:
             return self._path
 

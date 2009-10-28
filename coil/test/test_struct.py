@@ -10,7 +10,12 @@ class BasicTestCase(unittest.TestCase):
         self.data = (('first', {
                         'string': "something",
                         'float': 2.5,
-                        'int': 1 }),
+                        'int': 1,
+                        'dict': {
+                            'x': 1,
+                            'y': 2,
+                            'z': "another thing"}
+                        }),
                     ('second', "something else"),
                     ('last', [ "list", "of", "strings" ]))
         self.struct = struct.Struct(self.data)
@@ -37,7 +42,16 @@ class BasicTestCase(unittest.TestCase):
         self.assertEquals(self.struct.get('bogus.sub', "awesome"), "awesome")
 
     def testGetPath(self):
+        self.assertEquals(self.struct.path(), "@root");
         self.assertEquals(self.struct.get('first.int'), 1)
+    
+    def testGetRelativePath(self):
+        self.assertEquals(self.struct.path(''), "@root")
+        self.assertEquals(self.struct.path('first'), "@root.first")
+        self.assertEquals(self.struct.path('last'), "@root.last")
+        self.assertEquals(self.struct.get('first').path('string'), "@root.first.string")
+        self.assertEquals(self.struct.get('first').path('dict.x'), "@root.first.dict.x")
+        self.assertEquals(self.struct.get('first').path('dict.y'), "@root.first.dict.y")
 
     def testGetParent(self):
         child = self.struct['first']
