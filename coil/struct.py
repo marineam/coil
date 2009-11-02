@@ -557,7 +557,7 @@ class Struct(tokenizer.Location, DictMixin):
                 parent = self.get(key)
             except errors.KeyMissingError:
                 if add_parents:
-                    parent = self.__class__()
+                    parent = self.__class__(container=self, name=key)
                     self.set(key, parent)
                 else:
                     raise

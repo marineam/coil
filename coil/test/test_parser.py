@@ -145,6 +145,16 @@ class ExtendsTestCase(unittest.TestCase):
             D: {
                 @extends: @root.B
             }
+
+            E: {
+                F.G.H: { 
+                    a: 1 b: 2 c: 3
+                }
+
+                F.G.I: {
+                    @extends: ..H
+                }
+            }
             """
         self.tree = parser.Parser(self.text.splitlines()).root()
 
@@ -172,6 +182,11 @@ class ExtendsTestCase(unittest.TestCase):
         self.assertRaises(KeyError, lambda: self.tree['D']['c'])
         self.assertEquals(self.tree['D']['e'], [ "one", 2, "omg three" ])
         self.assertEquals(len(self.tree['D']), 3)
+
+    def testRelativePaths(self):
+        self.assertEquals(self.tree['E']['F']['G']['H']['a'], 1)
+        self.assertEquals(self.tree['E']['F']['G']['I']['a'], 1)
+        self.assertEquals(self.tree['E']['F']['G']['H'], self.tree['E']['F']['G']['I'])
 
 class ParseFileTestCase(unittest.TestCase):
 
