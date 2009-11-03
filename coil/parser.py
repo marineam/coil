@@ -201,6 +201,16 @@ class Parser(object):
                 ex.location(token)
                 raise ex
         else:
+            # ensure parents are created for flattened paths 
+            if '.' in token.value:
+                parts = token.value.split('.')
+                for key in parts[:-1]:
+                    if not container.get(key, False):
+                        new = StructPrototype(container=container, name=key)
+                        container[key] = new
+                    container = container[key]
+                token.value = parts[-1] 
+
             self._tokenizer.next(':')
 
             if token.value[0] == '@':
