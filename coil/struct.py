@@ -66,8 +66,8 @@ class Struct(tokenizer.Location, DictMixin):
         if name and container is not None:
             self._path = "%s.%s" % (container._path, name)
         else:
-            self._path = "@root" 
-        
+            self._path = "@root"
+
         if isinstance(base, (list, tuple)):
             base_iter = iter(base)
         else:
@@ -146,7 +146,7 @@ class Struct(tokenizer.Location, DictMixin):
         return value
 
     __getitem__ = get
-    
+
     def _update_path(self, path):
         self._path = path
         for key, node in self.iteritems():
