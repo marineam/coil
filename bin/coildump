@@ -83,10 +83,13 @@ def print_flattened(parsed, prefix=None):
     if isinstance(parsed, coil.struct.Struct):
         for key in parsed:
             # include the prefix if we have one
-            print_flattened(parsed[key],
-                         ".".join([prefix, key]) if prefix else key)
+            if prefix:
+                path = "%s.%s" % (prefix, key)
+            else:
+                path = key
+            print_flattened(parsed[key], path)
     else:
-        print prefix+":", parsed
+        print "%s: %s" % (prefix, parsed)
 
 
 def main():
