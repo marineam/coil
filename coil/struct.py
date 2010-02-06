@@ -194,6 +194,23 @@ class Struct(tokenizer.Location, DictMixin):
         else:
             del parent[key]
 
+    def merge(self, other):
+        """Recursively merge a coil :class:`Struct` tree.
+
+        This is similar to :meth:`update` except that it will update
+        the entire subtree rather than just this object.
+        """
+
+        for key, value in other.iteritems():
+            if isinstance(value, Struct):
+                dest = self.get(key, None)
+                if not isinstance(dest, Struct):
+                    dest = Struct(container=self, name=key)
+                dest.merge(value)
+                self._set(key, dest)
+            else:
+                self._set(key, value)
+
     def keys(self):
         """Get an ordered list of keys."""
         return list(iter(self))

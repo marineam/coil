@@ -124,6 +124,18 @@ class BasicTestCase(unittest.TestCase):
         self.assertEquals(struct.Struct.validate_path("@root"), True)
         self.assertEquals(struct.Struct.validate_path("#blah"), False)
 
+    def testMerge(self):
+        s1 = self.struct.copy()
+        s2 = struct.Struct()
+        s2['first.new'] = "whee"
+        s2['other.new'] = "woot"
+        s2['new'] = "zomg"
+        s1.merge(s2)
+        self.assertEquals(s1['first.string'], "something")
+        self.assertEquals(s1['first.new'], "whee")
+        self.assertEquals(s1['other'], struct.Struct({'new': "woot"}))
+        self.assertEquals(s1['new'], "zomg")
+
 class ExpansionTestCase(unittest.TestCase):
 
     def testExpand(self):
