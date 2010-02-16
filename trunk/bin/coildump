@@ -1,0 +1,111 @@
+#!/usr/bin/env python
+"""
+Expand and dump coil files to standard output
+"""
+
+import sys
+from optparse import OptionParser
+import coil
+
+
+class AttrError(Exception):
+    "poorly defined path-key/value pair for coil"
+    pass
+
+
+def parse_attrs(attrs, allow_path):
+    """split foo=bar (or foo:bar) attributes from the command line into
+    a list of key-value pairs"""
+    parsed = []
+
+    if attrs:
+        for attr in attrs:
+            if ':' in attr:
+                key, value = attr.split(':', 1)
+            elif '=' in attr:
+                key, value = attr.split('=', 1)
+            else:
+                raise AttrError("Invalid key:value pair. '%s'" % attr)
+
+            if not allow_path and '.' in key:
+                raise AttrError("Character '.' not allowed in '%s'" % key)
+
+            parsed.append((key, value))
+
+    return parsed
+
+
+def parse_options():
+    """Command-line option parsing"""
+    parser = OptionParser("Usage: %prog [options] file1.coil [coil2.coil...]")
+
+    parser.add_option("-d", "--default", dest="defaults", action="append",
+            help="A key:value pair to use as a default value")
+    parser.add_option("-a", "--attribute", dest="attrs", action="append",
+            help="A path.key:value pair to add add to the coil")
+    parser.add_option("-b", "--block", dest="block", action="store",
+            help="Show the subbranch of the coil underneath a given path.key")
+    parser.add_option("-f", "--flatten", dest="flatten", action="store_true",
+            help="Show each setting on a separate, fully-qualified line, "
+                      "rather than in {} blocks")
+
+    options, args = parser.parse_args()
+
+    try:
+        options.defaults = parse_attrs(options.defaults, False)
+    except AttrError, ex:
+        parser.error("Invalid --default: %s" % ex)
+
+    try:
+        options.attrs = parse_attrs(options.attrs, True)
+    except AttrError, ex:
+        parser.error("Invalid --attribute: %s" % ex)
+
+    if not args:
+        parser.error("At least one coil file is required!")
+
+    return options, args
+
+
+def dump_coil(parsed, block=None, flatten=False):
+    """Dump the coil as a string"""
+    if block:
+        parsed = parsed[block]
+
+    if flatten:
+        print_flattened(parsed)
+    else:
+        print parsed
+
+
+def print_flattened(parsed, prefix=None):
+    """Display the coil in lines of fully-qualified keypaths"""
+    if isinstance(parsed, coil.struct.Struct):
+        for key in parsed:
+            # include the prefix if we have one
+            if prefix:
+                path = "%s.%s" % (prefix, key)
+            else:
+                path = key
+            print_flattened(parsed[key], path)
+    else:
+        print "%s: %s" % (prefix, parsed)
+
+
+def main():
+    options, coil_files = parse_options()
+
+    for coil_file in coil_files:
+        try:
+            parsed = coil.parse_file(coil_file, expand=False)
+            for key, val in options.attrs:
+                parsed[key] = val
+            parsed.expand(defaults=dict(options.defaults))
+            dump_coil(parsed, block=options.block, flatten=options.flatten)
+        except Exception, ex:
+            sys.stderr.write("Error in %s: %s\n" % (coil_file, ex))
+            sys.exit(1)
+
+
+if __name__ == '__main__':
+    main()

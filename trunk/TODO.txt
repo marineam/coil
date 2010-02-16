@@ -1,0 +1,22 @@
+Version 0.3.?
+=============
+
+  - Extend Struct.update() to support recursive updates.
+  - Store charset info in Struct to aid converting unicode back to str
+  - Extend documentation to cover more of the API, particularly details
+    about Struct.expand and related operations.
+
+Future Ideas ?
+==============
+
+  - re-add support for @factory
+  - how to deal with package imports from zips/eggs/non-filesystem import?
+  - importing of directories
+  - Interfaces indicating schema information (maybe @provides, @type, or?)
+    - Ability to check for schema conformance
+    - UI for editing configuration ??
+  - Operators:
+    foo: {
+        @extends: =..bar
+        value: =..bar.value + 2
+    }
