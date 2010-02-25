@@ -15,6 +15,49 @@ from UserDict import DictMixin
 
 from coil import tokenizer, errors
 
+
+# Used by _expand_str()
+_EXPAND_BRACES = re.compile("^(.*){([^}]+)}(.*)$")
+_EXPAND_RANGE = re.compile("^(0*(\d+))\.\.(\d+)$")
+
+def _expand_str(string):
+    """Helper function for _expand_list to operate on individual strings"""
+
+    if not isinstance(string, basestring):
+        return [string]
+
+    match = _EXPAND_BRACES.search(string)
+    if not match:
+        return [string]
+    else:
+        new = []
+        prefix = match.group(1)
+        postfix = match.group(3)
+
+        for item in match.group(2).split(','):
+            range = _EXPAND_RANGE.match(item)
+            if range:
+                fmt = "%%s%%0%dd%%s" % len(range.group(1))
+                for i in xrange(int(range.group(2)), int(range.group(3))+1):
+                    new.extend(_expand_str(fmt % (prefix, i, postfix)))
+            else:
+                new.extend(_expand_str("%s%s%s" % (prefix, item, postfix)))
+
+        return new
+
+def _expand_list(seq):
+    """Expand {1..2} and {1,2} constructs in a list of strings.
+    Although this would be a useful public function it is private for
+    now since in the future I think I will provide a list subclass.
+    """
+
+    new = []
+    for item in seq:
+        new.extend(_expand_str(item))
+
+    return new
+
+
 class Link(object):
     """A temporary symbolic link to another item."""
 
@@ -60,6 +103,13 @@ class Struct(tokenizer.Location, DictMixin):
         self.name = name
         self._values = {}
         self._order = []
+
+        # the list of child structs if this is a map, this map
+        # copy kludge probably can go away when StructPrototype does.
+        if isinstance(base, Struct):
+            self._map = base._map
+        else:
+            self._map = None
 
         # this has to be compared to none, 
         # because Struct overrides len
@@ -253,11 +303,50 @@ class Struct(tokenizer.Location, DictMixin):
         _block = list(_block)
         _block.append(abspath)
 
-        for key in self:
-            value = self.expanditem(key, defaults, ignore_missing, _block)
-            self.set(key, value, self.keep)
-            if recursive and isinstance(value, Struct):
-                value.expand(defaults, ignore_missing, True, _block)
+        if self._map is not None:
+            self._map = _expand_list(self._map)
+            structs = []
+            lists = []
+
+            # We don't use iter because this loop delete stuff
+            for key, value in self.items():
+                value = self.expanditem(key, defaults, ignore_missing, _block)
+                if isinstance(value, Struct):
+                    structs.append((key, value))
+                    del self[key]
+                elif isinstance(value, list):
+                    value = _expand_list(value)
+                    if len(value) != len(self._map):
+                        raise errors.StructError(self, "Invalid @map list: "
+                                "expected length is %s, %s has length of %s" %
+                                (len(self._map), key, len(value)))
+                    lists.append((key, value))
+                    del self[key]
+                else:
+                    self.set(key, value, self.keep)
+
+            for key, orig in structs:
+                for i, suffix in enumerate(self._map):
+                    name = "%s%s" % (key, suffix)
+                    if not self.validate_key(name):
+                        raise errors.StructError(self, "Invalid @map list: "
+                                "key contains invalid characters: %r" % suffix)
+                    new = orig.__class__(orig, name=name, container=self)
+                    new._map = None
+                    self[name] = new
+
+                    for item_key, item_values in lists:
+                        new[item_key] = item_values[i]
+
+                    if recursive:
+                        new.expand(defaults, ignore_missing, True, _block)
+
+        else:
+            for key in self:
+                value = self.expanditem(key, defaults, ignore_missing, _block)
+                self.set(key, value, self.keep)
+                if recursive and isinstance(value, Struct):
+                    value.expand(defaults, ignore_missing, True, _block)
 
     def expanditem(self, path, defaults=(), ignore_missing=(), _block=()):
         """Fetch and expand an item at the given path. All :class:`Link`

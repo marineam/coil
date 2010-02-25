@@ -209,7 +209,7 @@ class Parser(object):
                     raise errors.CoilParseError(token,
                             "Unknown special attribute: %s" % token.value)
                 else:
-                    special(container)
+                    special(container, token)
             elif '.' in token.value:
                 # ensure parents are created for flattened paths
                 parts = token.value.split('.')
@@ -300,7 +300,7 @@ class Parser(object):
         token = self._tokenizer.next('VALUE')
         container.set(name, token.value, location=token)
 
-    def _special_extends(self, container):
+    def _special_extends(self, container, token):
         """Handle @extends: some.struct"""
 
         token = self._tokenizer.next('PATH')
@@ -325,7 +325,7 @@ class Parser(object):
 
         container.extends(parent, True)
 
-    def _special_file(self, container):
+    def _special_file(self, container, token):
         """Handle @file"""
 
         token = self._tokenizer.next('[', 'VALUE')
@@ -359,7 +359,7 @@ class Parser(object):
         except IOError, ex:
             raise errors.CoilParseError(token, str(ex))
 
-    def _special_package(self, container):
+    def _special_package(self, container, token):
         """Handle @package"""
 
         token = self._tokenizer.next('VALUE')
@@ -395,3 +395,10 @@ class Parser(object):
             self._extend_with_file(container, fullpath, "")
         except IOError, ex:
             raise errors.CoilParseError(token, str(ex))
+
+    def _special_map(self, container, token):
+        if container._map is not None:
+            raise errors.CoilParseError(token,
+                    "Found multiple @map lists, only one is allowed")
+        container._map = []
+        self._parse_list_values(container._map)
