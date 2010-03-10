@@ -304,7 +304,8 @@ class Struct(tokenizer.Location, DictMixin):
         _block.append(abspath)
 
         if self._map is not None:
-            self._map = _expand_list(self._map)
+            map = _expand_list(self._map)
+            self._map = None
             structs = []
             lists = []
 
@@ -316,23 +317,22 @@ class Struct(tokenizer.Location, DictMixin):
                     del self[key]
                 elif isinstance(value, list):
                     value = _expand_list(value)
-                    if len(value) != len(self._map):
+                    if len(value) != len(map):
                         raise errors.StructError(self, "Invalid @map list: "
                                 "expected length is %s, %s has length of %s" %
-                                (len(self._map), key, len(value)))
+                                (len(map), key, len(value)))
                     lists.append((key, value))
                     del self[key]
                 else:
                     self.set(key, value, self.keep)
 
             for key, orig in structs:
-                for i, suffix in enumerate(self._map):
+                for i, suffix in enumerate(map):
                     name = "%s%s" % (key, suffix)
                     if not self.validate_key(name):
                         raise errors.StructError(self, "Invalid @map list: "
                                 "key contains invalid characters: %r" % suffix)
                     new = orig.__class__(orig, name=name, container=self)
-                    new._map = None
                     self[name] = new
 
                     for item_key, item_values in lists:
