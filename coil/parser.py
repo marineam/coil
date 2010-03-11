@@ -103,6 +103,9 @@ class StructPrototype(struct.Struct):
                 new.append(item)
             return new
 
+        if base._map is not None and self._map is None:
+            self._map = list(base._map)
+
         for key, value in base.iteritems():
             if key in self or key in self._deleted:
                 continue
