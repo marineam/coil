@@ -218,3 +218,68 @@ class ParseFileTestCase(unittest.TestCase):
         self.assertEquals(root.get('y.a2'), 2)
         self.assertEquals(root.get('y.b'), 3)
 
+class MapTestCase(unittest.TestCase):
+
+    def setUp(self):
+        self.text = """
+            expanded: {
+                a1: {
+                    x: 1
+                    y: 1
+                    z: 1
+                }
+                a2: {
+                    x: 2
+                    y: 3
+                    z: 1
+                }
+                a3: {
+                    x: 3
+                    y: 5
+                    z: 1
+                }
+                b1: {
+                    x: 1
+                    y: 1
+                    z: 2
+                }
+                b2: {
+                    x: 2
+                    y: 3
+                    z: 2
+                }
+                b3: {
+                    x: 3
+                    y: 5
+                    z: 2
+                }
+            }
+            map: {
+                @map: [1 2 3]
+                x: [1 2 3]
+                y: [1 3 5]
+                a: { z: 1 }
+                b: { z: 2 }
+            }
+            map1: {
+                @extends: ..map
+            }
+            map2: {
+                @extends: ..map
+                a: { z: 3 }
+                j: [7 8 9]
+            }
+            """
+        self.tree = parser.Parser(self.text.splitlines()).root()
+
+    def testMap(self):
+        self.assertEquals(self.tree['map'], self.tree['expanded'])
+
+    def testExtends(self):
+        self.assertEquals(self.tree['map1'], self.tree['expanded'])
+        self.assertEquals(self.tree['map2.a1.z'], 3)
+        self.assertEquals(self.tree['map2.a1.j'], 7)
+        self.assertEquals(self.tree['map2.a2.z'], 3)
+        self.assertEquals(self.tree['map2.a2.j'], 8)
+        self.assertEquals(self.tree['map2.a3.z'], 3)
+        self.assertEquals(self.tree['map2.a3.j'], 9)
