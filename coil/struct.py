@@ -576,7 +576,6 @@ class Struct(tokenizer.Location, DictMixin):
                     "%s cannot be represented in the coil text format" % item)
 
         result = ""
-        next_prefix = "%s    " % prefix
 
         for key, val in self.iteritems():
             # This should never happen, but might as well be safe
