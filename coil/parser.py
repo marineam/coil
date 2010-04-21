@@ -307,12 +307,32 @@ class Parser(object):
         """Handle @extends: some.struct"""
 
         token = self._tokenizer.next('PATH')
+        path = token.value
 
         try:
-            parent = container.get(token.value)
+            parent = container.get(path)
         except errors.StructError, ex:
             ex.location(token)
             raise
+
+        if not isinstance(parent, struct.Struct):
+            raise errors.StructError(container,
+                  "@extends target must be of type Struct")
+
+        if parent is container:
+            raise errors.StructError(container,
+                  "@extends target cannot be self")
+
+        if not (path.startswith("@") or path.startswith("..")):
+            raise errors.StructError(container,
+                  "@extends target cannot be children of container")
+
+        _container = container
+        while _container is not None:
+            if _container == parent:
+              raise errors.StructError(container,
+                    "@extends target cannot be parents of container")
+            _container = _container.container
 
         container.extends(parent)
 

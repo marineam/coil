@@ -108,6 +108,10 @@ class BasicTestCase(unittest.TestCase):
             'a: {@extends: ..b}', # b doesn't exist
             'a: {@extends: x}',
             'a: {@extends: .}',
+            'a: 1 b: { @extends: ..a }', # extend struct only
+            'a: { @extends: ..a }', # extend self
+            'a: { b: {} @extends: b }', # extend children
+            'a: { b: { @extends: ...a } }', # extend parents
             'a: [1 2 3]]',
             ):
             self.assertRaises(errors.CoilError, parser.Parser, [coil])
