@@ -249,6 +249,106 @@ will turn out to be::
         y: "foo is zomg"
     }
 
+List Expansion with @map
+------------------------
+
+Note: new in 0.3.15
+
+The @map keyword can be used to generate a sequence of similar structs.
+In its simplest form we can create a set of identical structs::
+
+    foo: {
+        @map: [1 2 "-blah"]
+        bar: {
+            this: "that"
+        }
+    }
+
+The final expanded form will be copies of bar and the names are derived
+from the values of the @map list::
+
+    foo: {
+        bar1: {
+            this: "that"
+        }
+        bar2: {
+            this: "that"
+        }
+        bar-blah: {
+            this: "that"
+        }
+    }
+
+To actually make this useful @map will map sequences of values into the
+sequence of generated sturcts. For example if we want to generate a list
+of hosts::
+
+    foo: {
+        @map: [1 2]
+        host: {
+            type: "host"
+        }
+        name: ["hostname1" "hostname2"]
+        description: ["my host" "your host"]
+    }
+
+The name and description lists become attributes inside of host::
+
+    foo: {
+        host1: {
+            type: "host"
+            name: "hostname1"
+            description: "my host"
+        }
+        host2: {
+            type: "host"
+            name: "hostname2"
+            description: "your host"]
+        }
+    }
+
+The length of the lists to map in need to be the same length as the @map
+list. Bash-like brace expansion is also supported in all of the lists.
+Unlike bash if a sequence of numbers are being generated with .. and the
+start and end values are zero padded the resulting values will also be
+zero padded. So ["{1,2}" "{009..011}"] becomes [1 2 009 010 011]. It is
+also possible to expand multiple structs in a single map::
+
+    foo: {
+        @map: ["{1..2}"]
+        host: {
+            type: "host"
+            name: "${username}-desktop"
+        }
+        user: {
+            type: "user"
+        }
+        username: ["bob" "sue"]
+    }
+
+The result is::
+
+    foo: {
+        host1: {
+            type: "host"
+            name: "bob-desktop"
+            username: "bob"
+        }
+        host2: {
+            type: "host"
+            name: "sue-desktop"
+            username: "sue"
+        }
+        user1: {
+            type: "user"
+            username: "bob"
+        }
+        user2: {
+            type: "user"
+            username: "sue"
+        }
+    }
+
 Config Validation
 =================
 

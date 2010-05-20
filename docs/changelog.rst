@@ -2,6 +2,38 @@
 Change Log
 **********
 
+Version 0.4.15 (2010-03-22)
+===========================
+
+- Add new @map keyword to the coil parser for defining sequences of
+  structs and mapping sequences of values into them.
+
+Version 0.3.14 (2010-02-05)
+===========================
+
+- Add Struct.merge() method for merging two different struct trees. This
+  is essentially a recursive version of Struct.update().
+
+Version 0.3.13 (2010-01-04)
+===========================
+
+- New options to coildump:
+  --block: print only part of a coil file
+  --flatten: print values as "foo.bar: value" pairs rather than the
+  standard "foo: { bar: value }" format.
+
+- Fix a Python 2.4 version compatibility issue.
+
+Version 0.3.12 (2009-11-02)
+===========================
+
+- Optimize path resolution, reducing the number of recursive calls.
+
+Version 0.3.11 (2009-09-23)
+===========================
+
+- Some minor bug fixes and a little optimization.
+
 Version 0.3.8 (2009-08-20)
 ==========================
 
