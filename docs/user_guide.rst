@@ -280,7 +280,7 @@ from the values of the @map list::
     }
 
 To actually make this useful @map will map sequences of values into the
-sequence of generated sturcts. For example if we want to generate a list
+sequence of generated structs. For example if we want to generate a list
 of hosts::
 
     foo: {
