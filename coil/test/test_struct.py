@@ -44,7 +44,7 @@ class BasicTestCase(unittest.TestCase):
     def testGetPath(self):
         self.assertEquals(self.struct.path(), "@root");
         self.assertEquals(self.struct.get('first.int'), 1)
-    
+
     def testGetRelativePath(self):
         self.assertEquals(self.struct.path(''), "@root")
         self.assertEquals(self.struct.path('first'), "@root.first")

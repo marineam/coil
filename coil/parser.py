@@ -103,6 +103,14 @@ class StructPrototype(struct.Struct):
                 new.append(item)
             return new
 
+        if base is self:
+            raise errors.StructError(self,
+                "Struct cannot extend itself.")
+
+        if not isinstance(base, struct.Struct):
+            raise errors.StructError(self,
+                "attempting to extend a value which is NOT a struct.")
+
         if base._map is not None and self._map is None:
             self._map = list(base._map)
 
@@ -307,6 +315,11 @@ class Parser(object):
         """Handle @extends: some.struct"""
 
         token = self._tokenizer.next('PATH')
+
+        if container.container is None:
+            raise errors.StructError(self,
+                "@root cannot extend other structs.")
+
         path = token.value
 
         try:
@@ -330,8 +343,8 @@ class Parser(object):
         _container = container
         while _container is not None:
             if _container == parent:
-              raise errors.StructError(container,
-                    "@extends target cannot be parents of container")
+                raise errors.StructError(container,
+                      "@extends target cannot be parents of container")
             _container = _container.container
 
         container.extends(parent)
@@ -345,6 +358,10 @@ class Parser(object):
 
         if struct_path:
             parent = parent.get(struct_path)
+
+        if not isinstance(parent, struct.Struct):
+            raise errors.StructError(container,
+                "@file specification sub-import type must be Struct.")
 
         container.extends(parent, True)
 

@@ -61,6 +61,12 @@ class BasicTestCase(unittest.TestCase):
         root = parser.Parser(["sub: { @file: [%s 'y']}" % repr(path)]).root()
         self.assertEquals(root.get('sub.z'), "z value")
 
+        self.assertRaises(errors.StructError, parser.Parser,
+            ["sub: { @file: [%s 'a']}" % repr(path)])
+
+        self.assertRaises(errors.StructError, parser.Parser,
+            ["sub: { @file: [%s 'x']}" % repr(path)])
+
     def testFileDelete(self):
         path = os.path.join(os.path.dirname(__file__), "simple.coil")
         root = parser.Parser(["sub: { @file: %s ~y.z}" % repr(path)]).root()
@@ -151,7 +157,7 @@ class ExtendsTestCase(unittest.TestCase):
             }
 
             E: {
-                F.G.H: { 
+                F.G.H: {
                     a: 1 b: 2 c: 3
                 }
 

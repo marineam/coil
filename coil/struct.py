@@ -62,7 +62,7 @@ class Link(object):
     """A temporary symbolic link to another item."""
 
     def __init__(self, path):
-        """ 
+        """
         :param path: A path to point at.
         :type path: str
         """
@@ -96,7 +96,7 @@ class Struct(tokenizer.Location, DictMixin):
             This is normally only used by the :class:`Parser
             <coil.parser.Parser>`.
         """
-        assert isinstance(base, (list, tuple, dict, Struct))
+        assert getattr(base, '__iter__', False)
 
         tokenizer.Location.__init__(self, location)
         self.container = container
@@ -106,22 +106,19 @@ class Struct(tokenizer.Location, DictMixin):
 
         # the list of child structs if this is a map, this map
         # copy kludge probably can go away when StructPrototype does.
-        if isinstance(base, Struct):
-            self._map = base._map
-        else:
-            self._map = None
+        self._map = getattr(base, '_map', None)
 
-        # this has to be compared to none, 
+        # this has to be compared to none,
         # because Struct overrides len
         if name and container is not None:
             self._path = "%s.%s" % (container._path, name)
         else:
             self._path = "@root"
 
-        if isinstance(base, (list, tuple)):
-            base_iter = iter(base)
-        else:
+        if getattr(base, 'iteritems', False):
             base_iter = base.iteritems()
+        else:
+            base_iter = iter(base)
 
         for key, value in base_iter:
             if isinstance(value, (Struct, dict)):
