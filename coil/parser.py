@@ -358,10 +358,9 @@ class Parser(object):
 
         if struct_path:
             parent = parent.get(struct_path)
-
-        if not isinstance(parent, struct.Struct):
-            raise errors.StructError(container,
-                "@file specification sub-import type must be Struct.")
+            if not isinstance(parent, struct.Struct):
+                raise errors.StructError(container,
+                    "@file specification sub-import type must be Struct.")
 
         container.extends(parent, True)
 
