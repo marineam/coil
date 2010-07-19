@@ -1,0 +1,3 @@
+Run with ./configure --enable-debug for now...
+
+For platform compatibility set $PKG_CONFIG_PATH appropriately.
