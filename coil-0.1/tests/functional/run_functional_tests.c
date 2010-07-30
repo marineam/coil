@@ -73,76 +73,73 @@ build_functional_test_suite(void)
 }
 
 static void
-expect_pass(const gchar *filepath)
+expect_common(const gchar *filepath, GError **ret_error)
 {
   CoilStruct *root;
   GError     *error = NULL;
   GValue     *test, *expected;
 
   root = coil_parse_file(filepath, &error);
-  g_assert_no_error(error);
+  if (error) goto done;
 
   test = coil_struct_get_key_value(root, TEST_KEY_NAME, FALSE, &error);
-  g_assert_no_error(error);
+  if (error) goto done;
 
   expected = coil_struct_get_key_value(root, EXPECTED_KEY_NAME, FALSE, &error);
-  g_assert_no_error(error);
+  if (error) goto done;
 
   if (test == NULL ^ expected == NULL)
   {
     if (test == NULL)
-      g_error("Must specify 'test' in coil pass test file.");
+      g_error("Must specify 'test' if 'expected' is set.");
 
     if (expected == NULL)
-      g_error("Must specify 'expected' in coil pass test file.");
-  }
-  else
-  {
-    /* must just be checking syntax
-     * expand everything to catch expand errors in syntax
-     */
-    coil_struct_expand_recursive(root, &error);
-    g_assert_no_error(error);
-    goto pass;
+      g_error("Must specify 'expected' if 'test' is set.");
   }
 
-  const gint result = coil_value_compare(test, expected, &error);
+  /* expand everything to catch expand errors in syntax */
+  coil_struct_expand_recursive(root, &error);
+  if (error) goto done;
+
+  if (test == NULL ^ expected == NULL)
+  {
+    const gint result = coil_value_compare(test, expected, &error);
+    if (error) goto done;
+
+    if (result != 0)
+    {
+      gchar *string = coil_struct_to_string(root, &error);
+      g_set_error(&error, COIL_ERROR, COIL_ERROR_INTERNAL,
+                  "Failed: \n\n%s\n", string);
+      g_free(string);
+      goto done;
+    }
+  }
+
+done:
+  if (root)
+    g_object_unref(root);
+
+  if (error)
+      g_propagate_error(ret_error, error);
+}
+
+static void
+expect_pass(const gchar *filepath)
+{
+  GError     *error = NULL;
+
+  expect_common(filepath, &error);
   g_assert_no_error(error);
-
-  if (result != 0)
-  {
-    g_assert_no_error(error);
-    gchar *string = coil_struct_to_string(root, &error);
-    g_assert_no_error(error);
-    g_print("Failed: \n\n%s\n", string);
-    g_free(string);
-  }
-
-  g_assert(result == 0);
-
-pass:
-  g_object_unref(root);
 }
 
 static void
 expect_fail(const gchar *filepath)
 {
-  CoilStruct *root;
   GError     *error = NULL;
 
-  root = coil_parse_file(filepath, &error);
-
-  /* expand file to catch intentional expand errors */
-  /* TODO: add specific error checking */
-  if (root && error == NULL)
-  {
-    coil_struct_expand_recursive(root, &error);
-    g_assert(error != NULL);
-  }
-  else
-  {
-    g_assert(root == NULL);
-  }
+  expect_common(filepath, &error);
+  g_assert(error != NULL);
 }
 
 static void
