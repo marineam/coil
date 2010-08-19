@@ -293,3 +293,11 @@ class MapTestCase(unittest.TestCase):
         self.assertEquals(self.tree['map2.a2.j'], 8)
         self.assertEquals(self.tree['map2.a3.z'], 3)
         self.assertEquals(self.tree['map2.a3.j'], 9)
+
+class ReparseTestCase(unittest.TestCase):
+
+    def testStringWhitespace(self):
+        text = """a: 'this\nis\r\na\tstring\n\r\n\t'"""
+        orig = parser.Parser([text]).root()
+        new = parser.Parser([str(orig)]).root()
+        self.assertEquals(orig, new)

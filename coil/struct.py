@@ -561,6 +561,7 @@ class Struct(tokenizer.Location, DictMixin):
                 # Should we use """ for multi-line strings?
                 item = item.replace('\\', '\\\\')
                 item = item.replace('\n', '\\n')
+                item = item.replace('\r', '\\r')
                 item = item.replace('"', '\\"')
                 return '"%s"' % item
             elif isinstance(item, (list, tuple)):
