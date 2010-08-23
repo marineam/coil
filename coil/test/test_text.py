@@ -87,7 +87,6 @@ struct: {
             "@x: 2",
             "x: 12c",
             "x: 12.c3",
-            "a: 1 x: .a",
             "x: @root",
             "x: ..a",
             'x: {@package: "coil.test:nosuchfile"}',

@@ -49,7 +49,7 @@ class Tokenizer(Location):
     # Note: Keys may start with any number of -'s but must be followed by a
     #       letter
     KEY_REGEX = r'-*[a-zA-Z_][\w-]*'
-    PATH_REGEX = r'(@|\.\.+)?%s(\.%s)*' % (KEY_REGEX, KEY_REGEX)
+    PATH_REGEX = r'(@|\.+)?%s(\.%s)*' % (KEY_REGEX, KEY_REGEX)
 
     PATH = re.compile(PATH_REGEX)
     FLOAT = re.compile(r'-?[0-9]+\.[0-9]+')
