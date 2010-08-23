@@ -2,6 +2,16 @@
 Change Log
 **********
 
+Version 0.4.16 (2010-08-23)
+===========================
+
+- Add stricter validation of @extends to prevent circular references.
+
+- Properly escape \r when dumping structures to text.
+
+- Allow paths to begin with a self reference "." for compatibility with
+  coil versions <= 0.2.2 which seems to have allowed it.
+
 Version 0.4.15 (2010-03-22)
 ===========================
 
