@@ -600,6 +600,15 @@ class Struct(tokenizer.Location, DictMixin):
                  for key, val in self.iteritems()]
         return "%s({%s})" % (self.__class__.__name__, ", ".join(attrs))
 
+    def __eq__(self, other):
+        if isinstance(other, Struct):
+            return self.items() == other.items()
+        else:
+            return self.dict() == dict(other)
+
+    def __ne__(self, other):
+        return not self == other
+
     @classmethod
     def validate_key(cls, key):
         """Check if the given key is valid.

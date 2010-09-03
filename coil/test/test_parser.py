@@ -133,6 +133,12 @@ class BasicTestCase(unittest.TestCase):
         root = parser.Parser(["x: ['a' ['b' 'c']]"]).root()
         self.assertEqual(root['x'], ['a', ['b', 'c']])
 
+    def testEquality(self):
+        x = parser.Parser(["a: 1 b: 2"]).root()
+        self.assertEquals(x, parser.Parser(["a: 1 b: 2"]).root())
+        self.assertNotEqual(x, parser.Parser(["a: 2 b: 2"]).root())
+        self.assertNotEqual(x, parser.Parser(["b: 2 a: 1"]).root())
+
 class ExtendsTestCase(unittest.TestCase):
 
     def setUp(self):
@@ -233,34 +239,34 @@ class MapTestCase(unittest.TestCase):
         self.text = """
             expanded: {
                 a1: {
+                    z: 1
                     x: 1
                     y: 1
-                    z: 1
                 }
                 a2: {
+                    z: 1
                     x: 2
                     y: 3
-                    z: 1
                 }
                 a3: {
+                    z: 1
                     x: 3
                     y: 5
-                    z: 1
                 }
                 b1: {
+                    z: 2
                     x: 1
                     y: 1
-                    z: 2
                 }
                 b2: {
+                    z: 2
                     x: 2
                     y: 3
-                    z: 2
                 }
                 b3: {
+                    z: 2
                     x: 3
                     y: 5
-                    z: 2
                 }
             }
             map: {
