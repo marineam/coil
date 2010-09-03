@@ -4,7 +4,7 @@ Expand and dump coil files to standard output
 """
 
 import sys
-from optparse import OptionParser
+from optparse import OptionParser, SUPPRESS_HELP
 import coil
 
 
@@ -48,6 +48,8 @@ def parse_options():
     parser.add_option("-f", "--flatten", dest="flatten", action="store_true",
             help="Show each setting on a separate, fully-qualified line, "
                       "rather than in {} blocks")
+    parser.add_option("--profile", action="store_true", help=SUPPRESS_HELP)
+    parser.add_option("--profile-dump", help=SUPPRESS_HELP)
 
     options, args = parser.parse_args()
 
@@ -91,10 +93,7 @@ def print_flattened(parsed, prefix=None):
     else:
         print "%s: %s" % (prefix, parsed)
 
-
-def main():
-    options, coil_files = parse_options()
-
+def run(options, coil_files):
     for coil_file in coil_files:
         try:
             parsed = coil.parse_file(coil_file, expand=False)
@@ -106,6 +105,22 @@ def main():
             sys.stderr.write("Error in %s: %s\n" % (coil_file, ex))
             sys.exit(1)
 
+def main():
+    options, coil_files = parse_options()
+
+    if options.profile or options.profile_dump:
+        import cProfile
+        import pstats
+        profiler = cProfile.Profile()
+        profiler.runcall(run, options, coil_files)
+        if options.profile_dump:
+            profiler.dump_stats(options.profile_dump)
+        if options.profile:
+            stats = pstats.Stats(profiler, stream=sys.stderr)
+            stats.sort_stats('time', 'cumulative')
+            stats.print_stats(40)
+    else:
+        run(options, coil_files)
 
 if __name__ == '__main__':
     main()
