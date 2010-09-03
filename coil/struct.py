@@ -11,7 +11,10 @@ as a tree and can handle relative references between them.
 from __future__ import generators
 
 import re
-from UserDict import DictMixin
+try:
+    from collections import OrderedDict
+except ImportError:
+    from coil.ordereddict import OrderedDict
 
 from coil import tokenizer, errors
 
@@ -71,7 +74,7 @@ class Link(object):
     def __repr__(self):
         return "%s(%s)" % (self.__class__.__name__, repr(self.path))
 
-class Struct(tokenizer.Location, DictMixin):
+class Struct(tokenizer.Location, OrderedDict):
     """A dict-like object for use in trees."""
 
     KEY = re.compile(r'^%s$' % tokenizer.Tokenizer.KEY_REGEX)
@@ -96,13 +99,10 @@ class Struct(tokenizer.Location, DictMixin):
             This is normally only used by the :class:`Parser
             <coil.parser.Parser>`.
         """
-        assert getattr(base, '__iter__', False)
-
+        OrderedDict.__init__(self)
         tokenizer.Location.__init__(self, location)
         self.container = container
         self.name = name
-        self._values = {}
-        self._order = []
 
         # the list of child structs if this is a map, this map
         # copy kludge probably can go away when StructPrototype does.
@@ -115,43 +115,19 @@ class Struct(tokenizer.Location, DictMixin):
         else:
             self._path = "@root"
 
-        if getattr(base, 'iteritems', False):
-            base_iter = base.iteritems()
-        else:
-            base_iter = iter(base)
-
-        for key, value in base_iter:
-            if isinstance(value, (Struct, dict)):
-                value = self.__class__(value, self, key)
+        # load base and recursively copy any mutable types
+        for key, value in getattr(base, 'iteritems', base.__iter__)():
+            if isinstance(value, dict):
+                self._set(key, self.__class__(value, self, key))
             elif isinstance(value, list):
-                value = list(value)
-            self[key] = value
+                self._set(key, list(value))
+            else:
+                self._set(key, value)
 
-    def _get(self, key):
-        return self._values[key]
-
-    def _set(self, key, value):
-        self._values[key] = value
-        if key not in self._order:
-            self._order.append(key)
-
-    def _del(self, key):
-        del self._values[key]
-        try:
-            self._order.remove(key)
-        except ValueError:
-            raise KeyError
-
-    def __contains__(self, key):
-        return key in self._values
-
-    def __iter__(self):
-        """Iterate over the ordered list of keys."""
-        for key in self._order:
-            yield key
-
-    def __len__(self):
-        return len(self._values)
+    # Raw get/set/del functions
+    _get = OrderedDict.__getitem__
+    _set = OrderedDict.__setitem__
+    _del = OrderedDict.__delitem__
 
     # The remaining methods likely do not need to be overridden in subclasses
 
@@ -258,25 +234,12 @@ class Struct(tokenizer.Location, DictMixin):
             else:
                 self._set(key, value)
 
-    def keys(self):
-        """Get an ordered list of keys."""
-        return list(iter(self))
-
     def attributes(self):
         """Alias for :meth:`keys`.
 
         Only for compatibility with Coil <= 0.2.2.
         """
         return self.keys()
-
-    def has_key(self, key):
-        """True if key is in this :class:`Struct`"""
-        return key in self
-
-    def iteritems(self):
-        """Iterate over the ordered list of (key, value) pairs."""
-        for key in self:
-            yield key, self[key]
 
     def expand(self, defaults=(), ignore_missing=(), recursive=True, _block=()):
         """Expand all :class:`Link` and sub-string variables in this
@@ -307,7 +270,7 @@ class Struct(tokenizer.Location, DictMixin):
             lists = []
 
             # We don't use iter because this loop delete stuff
-            for key, value in self.items():
+            for key in self.keys():
                 value = self.expanditem(key, defaults, ignore_missing, _block)
                 if isinstance(value, Struct):
                     structs.append((key, value))
@@ -329,7 +292,7 @@ class Struct(tokenizer.Location, DictMixin):
                     if not self.validate_key(name):
                         raise errors.StructError(self, "Invalid @map list: "
                                 "key contains invalid characters: %r" % suffix)
-                    new = orig.__class__(orig, name=name, container=self)
+                    new = orig.copy(name=name, container=self)
                     self[name] = new
 
                     for item_key, item_values in lists:
@@ -505,10 +468,10 @@ class Struct(tokenizer.Location, DictMixin):
 
         return unexpanded_list(self.values())
 
-    def copy(self):
+    def copy(self, container=None, name=None):
         """Recursively copy this :class:`Struct`"""
 
-        return self.__class__(self)
+        return self.__class__(self, container=container, name=name)
 
     def dict(self):
         """Recursively copy this :class:`Struct` into normal *dict* objects"""

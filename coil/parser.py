@@ -18,8 +18,6 @@ class StructPrototype(struct.Struct):
     """
 
     def __init__(self, base=(), container=None, name=None, location=None):
-        struct.Struct.__init__(self, base, container, name, location)
-
         # Secondary items are ones that are inherited via @extends or @file
         # They must be tracked separately so we can raise errors on
         # double adds and deletes in the primary values.
@@ -29,48 +27,47 @@ class StructPrototype(struct.Struct):
         # but have been removed from this Struct by ~foo tokens.
         self._deleted = []
 
+        super(StructPrototype, self).__init__(base, container, name, location)
+
     def _get(self, key):
         try:
-            return self._values[key]
+            return super(StructPrototype, self)._get(key)
         except KeyError:
             return self._secondary_values[key]
 
     def _set(self, key, value):
         self._validate_doubleset(key)
 
-        self._values[key] = value
+        super(StructPrototype, self)._set(key, value)
 
         if key in self._secondary_values:
             del self._secondary_values[key]
-        elif key not in self._order:
-            self._order.append(key)
 
     def _del(self, key):
         self._validate_doubleset(key)
 
-        if key in self._values:
-            del self._values[key]
-            if key in self._order:
-                self._order.remove(key)
-            else:
-                self._secondary_order.remove(key)
-        elif key in self._secondary_values:
+        try:
+            super(StructPrototype, self)._del(key)
+        except KeyError:
             del self._secondary_values[key]
             self._secondary_order.remove(key)
         else:
             raise KeyError
 
     def __contains__(self, key):
-        return key in self._values or key in self._secondary_values
+        return (super(StructPrototype, self).__contains__(key)
+                or key in self._secondary_values)
 
     def __iter__(self):
         for key in self._secondary_order:
             yield key
-        for key in self._order:
-            yield key
+        for key in super(StructPrototype, self).__iter__():
+            if key not in self._secondary_order:
+                yield key
 
     def __len__(self):
-        return len(self._values) + len(self._secondary_values)
+        return (super(StructPrototype, self).__len__()
+                + len(self._secondary_values))
 
     def extends(self, base, relative=False):
         """Add a struct as another parent.
@@ -139,7 +136,8 @@ class StructPrototype(struct.Struct):
     def _validate_doubleset(self, key):
         """Private: check that key has not been used (excluding parents)"""
 
-        if key in self._deleted or key in self._values:
+        if (super(StructPrototype, self).__contains__(key)
+                or key in self._deleted):
             raise errors.StructError(self,
                     "Setting/deleting '%s' twice" % repr(key))
 

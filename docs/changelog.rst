@@ -2,7 +2,32 @@
 Change Log
 **********
 
-Version 0.4.16 (2010-08-23)
+Version 0.4.0 (????)
+====================
+
+Incompatible Changes
+--------------------
+
+- :class:`Struct <coil.struct.Struct>` is now based on Python 2.7's
+  OrderedDict class rather than DictMixin. For Python versions <= 2.6
+  a compatible replacement is used which is based on dict and DictMixin.
+
+  For most usage this should be a transparent change but now
+  issubclass(Struct, DictMixin) may or may not be True. Also, the
+  equality operator now considers the ordering of attributes. From
+  Python 2.7's documentation on the subject:
+
+    Equality tests between OrderedDict objects are order-sensitive and
+    are implemented as list(od1.items())==list(od2.items()). Equality
+    tests between OrderedDict objects and other Mapping objects are
+    order-insensitive like regular dictionaries. This allows OrderedDict
+    objects to be substituted anywhere a regular dictionary is used.
+
+  I actually had not realized or forgotten that coil 0.3.x was ignoring
+  the order so I was baffled for some time as to why some 0.3.x test
+  cases ever managed to pass in the first place.
+
+Version 0.3.16 (2010-08-23)
 ===========================
 
 - Add stricter validation of @extends to prevent circular references.
@@ -12,7 +37,7 @@ Version 0.4.16 (2010-08-23)
 - Allow paths to begin with a self reference "." for compatibility with
   coil versions <= 0.2.2 which seems to have allowed it.
 
-Version 0.4.15 (2010-03-22)
+Version 0.3.15 (2010-03-22)
 ===========================
 
 - Add new @map keyword to the coil parser for defining sequences of
