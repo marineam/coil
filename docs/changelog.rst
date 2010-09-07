@@ -27,6 +27,12 @@ Incompatible Changes
   the order so I was baffled for some time as to why some 0.3.x test
   cases ever managed to pass in the first place.
 
+- All list objects in coil trees are now instances of
+  :class:`List <coil.struct.List` which is just a list that knows how to
+  recursively copy itself. Since it is still a subclass of the built in
+  list class this shouldn't break any (sane) existing code although more
+  features may be added in the future.
+
 Version 0.3.16 (2010-08-23)
 ===========================
 

@@ -93,7 +93,7 @@ class StructPrototype(struct.Struct):
             return "${%s}" % relativeize(match.group(1))
 
         def relativelist(old):
-            new = []
+            new = struct.List()
             for item in old:
                 if isinstance(item, basestring):
                     item = struct.Struct.EXPAND.sub(relativestr, item)
@@ -274,7 +274,7 @@ class Parser(object):
     def _parse_list(self, container, name):
         """[ number or string or list ... ]"""
 
-        new = list()
+        new = struct.List()
         container[name] = new
         self._parse_list_values(new)
 
@@ -286,7 +286,7 @@ class Parser(object):
 
         while token.type != ']':
             if token.type == '[':
-                new = list()
+                new = struct.List()
                 container.append(new)
                 self._parse_list_values(new)
             else:

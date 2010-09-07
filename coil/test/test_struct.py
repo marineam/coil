@@ -136,6 +136,15 @@ class BasicTestCase(unittest.TestCase):
         self.assertEquals(s1['other'], struct.Struct({'new': "woot"}))
         self.assertEquals(s1['new'], "zomg")
 
+    def testCopyList(self):
+        s1 = struct.Struct({'list': [1, 2, [3, 4]]})
+        self.assertEquals(s1['list'], [1, 2, [3, 4]])
+        s2 = s1.copy()
+        s1['list'].append(8)
+        s1['list'][2].append(9)
+        self.assertEquals(s1['list'], [1, 2, [3, 4, 9], 8])
+        self.assertEquals(s2['list'], [1, 2, [3, 4]])
+
 class ExpansionTestCase(unittest.TestCase):
 
     def testExpand(self):

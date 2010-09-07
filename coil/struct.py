@@ -74,6 +74,21 @@ class Link(object):
     def __repr__(self):
         return "%s(%s)" % (self.__class__.__name__, repr(self.path))
 
+class List(list):
+    """A list that can copy itself recursively"""
+
+    def __init__(self, sequence=()):
+        def copy(sequence):
+            for item in sequence:
+                if isinstance(item, list):
+                    yield self.__class__(item)
+                else:
+                    yield item
+        super(List, self).__init__(copy(sequence))
+
+    def copy(self):
+        return self.__class__(self)
+
 class Struct(tokenizer.Location, OrderedDict):
     """A dict-like object for use in trees."""
 
@@ -120,7 +135,7 @@ class Struct(tokenizer.Location, OrderedDict):
             if isinstance(value, dict):
                 self._set(key, self.__class__(value, self, key))
             elif isinstance(value, list):
-                self._set(key, list(value))
+                self._set(key, List(value))
             else:
                 self._set(key, value)
 
