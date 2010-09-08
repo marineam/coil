@@ -101,8 +101,6 @@ class Struct(tokenizer.Location, OrderedDict):
     #: Signal :meth:`set` to preserve location data for key
     keep = object()
 
-    # These first methods likely would need to be overridden by subclasses
-
     def __init__(self, base=(), container=None, name=None, location=None):
         """
         :param base: A *dict*, *Struct*, or a sequence of (key, value)
@@ -116,19 +114,19 @@ class Struct(tokenizer.Location, OrderedDict):
         """
         OrderedDict.__init__(self)
         tokenizer.Location.__init__(self, location)
-        self.container = container
-        self.name = name
+
+        if container is not None:
+            self._set_container(container, name)
+        else:
+            assert not name
+            self.container = None
+            self.name = "@root"
+            self.root = self
+            self._path = "@root"
 
         # the list of child structs if this is a map, this map
         # copy kludge probably can go away when StructPrototype does.
         self._map = getattr(base, '_map', None)
-
-        # this has to be compared to none,
-        # because Struct overrides len
-        if name and container is not None:
-            self._path = "%s.%s" % (container._path, name)
-        else:
-            self._path = "@root"
 
         # load base and recursively copy any mutable types
         for key, value in getattr(base, 'iteritems', base.__iter__)():
@@ -144,7 +142,24 @@ class Struct(tokenizer.Location, OrderedDict):
     _set = OrderedDict.__setitem__
     _del = OrderedDict.__delitem__
 
-    # The remaining methods likely do not need to be overridden in subclasses
+    def _set_container(self, container, name):
+        assert container is not None and name
+        old = getattr(self, "container", None)
+        if old is container:
+            return
+        else:
+            assert old is None
+        self.container = container
+        self.root = container.root
+        self.name = name
+        self._update_path()
+
+    def _update_path(self):
+        assert self.container is not None
+        self._path = "%s.%s" % (self.container._path, self.name)
+        for node in self.itervalues():
+            if isinstance(node, Struct):
+                node._update_path()
 
     def get(self, path, default=_raise):
         """Get a value from any :class:`Struct` in the tree.
@@ -185,12 +200,6 @@ class Struct(tokenizer.Location, OrderedDict):
 
     __getitem__ = get
 
-    def _update_path(self, path):
-        self._path = path
-        for key, node in self.iteritems():
-            if isinstance(node, Struct):
-                node._update_path("%s.%s"  % (path, key))
-
     def set(self, path, value, location=None):
         """Set a value in any :class:`Struct` in the tree.
 
@@ -207,10 +216,8 @@ class Struct(tokenizer.Location, OrderedDict):
             if not key or not self.KEY.match(key):
                 raise errors.KeyValueError(self, key)
 
-            if isinstance(value, Struct) and value.container is None:
-                value.container = self
-                value.name = key
-                value._update_path("%s.%s" % (parent._path, key))
+            if isinstance(value, Struct):
+                value._set_container(self, key)
 
             self._set(key, value)
         else:
