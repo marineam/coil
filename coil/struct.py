@@ -72,34 +72,173 @@ def _copy_list(seq, cls=list):
     return cls(_copy_list_contents(seq, cls))
 
 
-class Link(object):
+class Node(tokenizer.Location):
+    """The base class for elements in a coil tree"""
+
+    KEY = re.compile(r'^%s$' % tokenizer.Tokenizer.KEY_REGEX)
+    PATH = re.compile(r'^%s$' % tokenizer.Tokenizer.PATH_REGEX)
+
+    #: The parent node in the coil tree
+    container = None
+    #: The name of this node inside container
+    node_name = None
+    #: The absolute path of this node in the coil tree
+    node_path = None
+    #: The root node of the coil tree
+    tree_root = None
+
+    def __init__(self, container=None, name=None, location=None):
+        """
+        :param container: the parent *Struct* of this *Node*.
+        :type container: :class:`Struct`
+        :param name: The name of this *Node* in *container*.
+        :type name: str
+        :param location: original file location from the tokenizer
+        :type location: :class:`Location <coil.tokenizer.Location>`
+        """
+        super(Node, self).__init__(location)
+        self._set_container(container, name)
+
+    def _set_container(self, container, name):
+        if self.container is not None and self.container is container:
+            pass
+        elif container is not None and name:
+            self.container = container
+            self.node_name = name
+            self.node_path = "%s.%s" % (container.node_path, name)
+            self.tree_root = container.tree_root
+        elif container is None:
+            assert name is None or name == "@root"
+            self.container = None
+            self.node_name = "@root"
+            self.node_path = "@root"
+            self.tree_root = self
+        else:
+            assert 0
+
+    @classmethod
+    def validate_key(cls, key):
+        """Check if the given key is valid.
+
+        :param path: path to test
+        :typo path: str
+        :rtype: bool
+        """
+        return bool(cls.KEY.match(key))
+
+    @classmethod
+    def validate_path(cls, path):
+        """Check if the given path is valid.
+
+        :param path: path to test
+        :typo path: str
+        :rtype: bool
+        """
+        return bool(cls.PATH.match(path))
+
+    def relative_path(self, path, ref=None):
+        """Convert an absolute path into a relative path.
+        The new path will be relative to this *Node*. If the given path
+        is not absolute this function is a no-op. The ref parameter
+        defaults to :attr:`node_path`.
+
+        :param path: absolute path to translate
+        :type path: str
+        :param ref: reference path the translation is relative to
+        :type ref: str
+        :rtype: str
+        """
+
+        if not path.startswith("@root"):
+            return path
+        if ref is None:
+            ref = self.node_path
+
+        split_path = path.split('.')
+        split_self = ref.split('.')
+
+        common = 0
+        len_self = len(split_self)
+        for i in xrange(min(len_self, len(split_path))):
+            if split_self[i] == split_path[i]:
+                common = i
+            else:
+                break
+
+        dots = len_self - common
+        names = ".".join(split_path[common+1:])
+
+        # Don't bother with leading . if possible
+        if dots == 1 and names:
+            return names
+        else:
+            return "."*dots + names
+
+    def absolute_path(self, path, ref=None):
+        """Convert a relative path into an absolute path.
+        If the given path is not relative this function is a no-op.
+        The ref parameter defaults to :attr:`path`.
+
+        :param path: relative path to translate
+        :type path: str
+        :param ref: reference path the translation is relative to
+        :type ref: str
+        :rtype: str
+        """
+
+        if path.startswith("@root"):
+            return path
+        if ref is None:
+            ref = self.node_path
+
+        names = path.lstrip('.')
+        dots = len(path) - len(names)
+        split = ref.split('.')
+
+        if dots > len(split):
+            # What exception should this be?
+            raise errors.CoilError(self, "Relative reference past root.")
+        if dots > 1:
+            split = split[:-dots+1]
+        if names:
+            split.append(names)
+        return ".".join(split)
+
+
+class Link(Node):
     """A temporary symbolic link to another item."""
 
-    def __init__(self, path):
+    def __init__(self, path, container=None, name=None, location=None):
         """
-        :param path: A path to point at.
+        :param path: An absolute or relative path to point at.
         :type path: str
+        :param container: the parent *Struct* of this *Node*.
+        :type container: :class:`Struct`
+        :param name: The name of this *Node* in *container*.
+        :type name: str
+        :param location: original file location from the tokenizer
+        :type location: :class:`Location <coil.tokenizer.Location>`
         """
+        super(Link, self).__init__(container, name, location)
+        #self.link_path = self.absolute_path(path)
         self.path = path
 
     def __repr__(self):
         return "%s(%s)" % (self.__class__.__name__, repr(self.path))
 
-class List(list):
+class List(list, Node):
     """A list that can copy itself recursively"""
 
-    def __init__(self, sequence=()):
-        super(List, self).__init__(
-                _copy_list_contents(sequence, self.__class__))
+    def __init__(self, sequence=(), container=None, name=None, location=None):
+        list.__init__(self, _copy_list_contents(sequence, self.__class__))
+        Node.__init__(self, container, name, location)
 
     def copy(self):
         return self.__class__(self)
 
-class Struct(tokenizer.Location, OrderedDict):
+class Struct(OrderedDict, Node):
     """A dict-like object for use in trees."""
 
-    KEY = re.compile(r'^%s$' % tokenizer.Tokenizer.KEY_REGEX)
-    PATH = re.compile(r'^%s$' % tokenizer.Tokenizer.PATH_REGEX)
     EXPAND = re.compile(r'\$\{(%s)\}' % tokenizer.Tokenizer.PATH_REGEX)
 
     #: Signal :meth:`get` to raise an error if key is not found
@@ -119,16 +258,7 @@ class Struct(tokenizer.Location, OrderedDict):
             <coil.parser.Parser>`.
         """
         OrderedDict.__init__(self)
-        tokenizer.Location.__init__(self, location)
-
-        if container is not None:
-            self._set_container(container, name)
-        else:
-            assert not name
-            self.container = None
-            self.name = "@root"
-            self.root = self
-            self._path = "@root"
+        Node.__init__(self, container, name, location)
 
         # the list of child structs if this is a map, this map
         # copy kludge probably can go away when StructPrototype does.
@@ -148,21 +278,23 @@ class Struct(tokenizer.Location, OrderedDict):
     _set = OrderedDict.__setitem__
     _del = OrderedDict.__delitem__
 
+    # 3.x compat
+    @property
+    def name(self):
+        return self.node_name
+
+    @property
+    def _path(self):
+        return self.node_path
+
     def _set_container(self, container, name):
-        assert container is not None and name
-        old = getattr(self, "container", None)
-        if old is container:
-            return
-        else:
-            assert old is None
-        self.container = container
-        self.root = container.root
-        self.name = name
-        self._update_path()
+        super(Struct, self)._set_container(container, name)
+        if container is not None:
+            self._update_path()
 
     def _update_path(self):
         assert self.container is not None
-        self._path = "%s.%s" % (self.container._path, self.name)
+        self.node_path = "%s.%s" % (self.container.node_path, self.node_name)
         for node in self.itervalues():
             if isinstance(node, Struct):
                 node._update_path()
@@ -522,12 +654,7 @@ class Struct(tokenizer.Location, OrderedDict):
         to the given path."""
 
         if path:
-            parent, key = self._get_next_parent(path)
-
-            if parent is self:
-                return "%s.%s" % (self._path, key)
-            else:
-                return parent.path(key)
+            return self.absolute_path(path)
         else:
             return self._path
 
@@ -599,22 +726,6 @@ class Struct(tokenizer.Location, OrderedDict):
 
     def __ne__(self, other):
         return not self == other
-
-    @classmethod
-    def validate_key(cls, key):
-        """Check if the given key is valid.
-
-        @rtype: bool
-        """
-        return bool(cls.KEY.match(key))
-
-    @classmethod
-    def validate_path(cls, path):
-        """Check if the given path is valid.
-
-        @rtype: bool
-        """
-        return bool(cls.PATH.match(path))
 
     def _get_next_parent(self, path, add_parents=False):
         """Returns the next Struct in a path and the remaining path.
