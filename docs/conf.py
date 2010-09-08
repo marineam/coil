@@ -93,6 +93,7 @@ pygments_style = 'sphinx'
 # -------------------
 
 autoclass_content = 'both'
+autodoc_member_order = 'groupwise' # bump this to 'bysource' in 1.0
 
 
 # Options for HTML output
