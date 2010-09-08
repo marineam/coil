@@ -60,6 +60,17 @@ def _expand_list(seq):
 
     return new
 
+def _copy_list_contents(seq, cls=list):
+    """Recursively copy a list of lists"""
+    for item in seq:
+        if isinstance(item, list):
+            yield cls(_copy_list_contents(item))
+        else:
+            yield item
+
+def _copy_list(seq, cls=list):
+    return cls(_copy_list_contents(seq, cls))
+
 
 class Link(object):
     """A temporary symbolic link to another item."""
@@ -78,13 +89,8 @@ class List(list):
     """A list that can copy itself recursively"""
 
     def __init__(self, sequence=()):
-        def copy(sequence):
-            for item in sequence:
-                if isinstance(item, list):
-                    yield self.__class__(item)
-                else:
-                    yield item
-        super(List, self).__init__(copy(sequence))
+        super(List, self).__init__(
+                _copy_list_contents(sequence, self.__class__))
 
     def copy(self):
         return self.__class__(self)
@@ -416,7 +422,7 @@ class Struct(tokenizer.Location, OrderedDict):
             if isinstance(subval, Struct):
                 subval = subval.copy()
             if isinstance(subval, list):
-                subval = list(subval)
+                subval = List(subval)
 
             return subval
 
@@ -505,7 +511,7 @@ class Struct(tokenizer.Location, OrderedDict):
             elif isinstance(value, dict):
                 value = value.copy()
             elif isinstance(value, list):
-                value = list(value)
+                value = _copy_list(value)
             new[key] = value
 
         return new
