@@ -25,21 +25,28 @@ class CoilError(Exception):
         else:
             return self.reason
 
-class StructError(CoilError):
-    """Generic error for :class:`coil.struct.Struct` objects,
-    used by various Key errors.
-    """
+class NodeError(CoilError):
+    """Generic error for :class:`coil.struct.Node` objects"""
 
-    def __init__(self, struct, reason):
-        self.structPath = struct.path()
-        CoilError.__init__(self, struct, reason)
+    def __init__(self, node, reason):
+        self.node_path = node.node_path
+        CoilError.__init__(self, node, reason)
 
     def __str__(self):
         if self.filePath or self.line:
-            return "<%s %s:%s> %s" % (self.structPath,
+            return "<%s %s:%s> %s" % (self.node_path,
                     self.filePath, self.line, self.reason)
         else:
-            return "<%s> %s" % (self.structPath, self.reason)
+            return "<%s> %s" % (self.node_path, self.reason)
+
+class StructError(NodeError):
+    """Generic error for :class:`coil.struct.Struct` objects"""
+
+    # compat
+    @property
+    def structPath(self):
+        return self.node_path
+
 
 class KeyMissingError(StructError, KeyError):
     """The given key was not found"""

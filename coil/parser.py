@@ -121,11 +121,12 @@ class StructPrototype(struct.Struct):
                 new.extends(value, relative)
                 value = new
 
+            if isinstance(value, struct.Link):
+                value = value.copy(self, key)
+
             # Convert absolute to relative links if required
             if relative:
-                if isinstance(value, struct.Link):
-                    value.path = relativeize(value.path)
-                elif isinstance(value, basestring):
+                if isinstance(value, basestring):
                     value = struct.Struct.EXPAND.sub(relativestr, value)
                 elif isinstance(value, list):
                     value = relativelist(value)
@@ -300,7 +301,7 @@ class Parser(object):
         """some.path"""
 
         token = self._tokenizer.next('PATH')
-        link = struct.Link(token.value)
+        link = struct.Link(token.value, container, name, token)
         container.set(name, link, location=token)
 
     def _parse_plain(self, container, name):

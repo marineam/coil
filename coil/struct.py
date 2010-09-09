@@ -153,6 +153,8 @@ class Node(tokenizer.Location):
             return path
         if ref is None:
             ref = self.node_path
+        else:
+            ref = self.absolute_path(ref)
 
         split_path = path.split('.')
         split_self = ref.split('.')
@@ -190,14 +192,19 @@ class Node(tokenizer.Location):
             return path
         if ref is None:
             ref = self.node_path
+        else:
+            ref = self.absolute_path(ref)
 
         names = path.lstrip('.')
         dots = len(path) - len(names)
         split = ref.split('.')
 
         if dots > len(split):
-            # What exception should this be?
-            raise errors.CoilError(self, "Relative reference past root.")
+            msg = "Reference past root node in %r" % path
+            if ref != self.node_path:
+                msg = "%s (ref=%r)" % (msg, ref)
+            raise errors.NodeError(self, msg)
+
         if dots > 1:
             split = split[:-dots+1]
         if names:
@@ -219,8 +226,11 @@ class Node(tokenizer.Location):
 class Link(Node):
     """A temporary symbolic link to another item."""
 
-    def __init__(self, path, container=None, name=None, location=None):
+    def __init__(self, path, container, name, location=None):
         """
+        Note: unlike other subclasses of :class:`Node` the container
+        information is required. Links require context.
+
         :param path: An absolute or relative path to point at.
         :type path: str
         :param container: the parent *Struct* of this *Node*.
@@ -231,10 +241,26 @@ class Link(Node):
         :type location: :class:`Location <coil.tokenizer.Location>`
         """
         super(Link, self).__init__(container, name, location)
-        if isinstance(path, Link):
-            path = path.path
-        #self.link_path = self.absolute_path(path)
-        self.path = path
+        # Check that the link doesn't pass @root
+        container.absolute_path(path)
+        self.link_path = path
+
+    @property
+    def path(self):
+        return self.link_path
+
+    def copy(self, container, name):
+        link_path = self.link_path
+        if (container.tree_root is not self.tree_root and
+                container.node_path != self.container.node_path and
+                link_path.startswith("@root")):
+            # The structure of this coil tree has changed, translate
+            # our old absolute path into a new one that points to the
+            # same relative position in the tree.
+            rel_path = self.container.relative_path(self.link_path)
+            link_path = container.absolute_path(rel_path)
+
+        return self.__class__(link_path, container, name, self)
 
     def __repr__(self):
         return "%s(%s)" % (self.__class__.__name__, repr(self.path))
