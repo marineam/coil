@@ -204,6 +204,17 @@ class Node(tokenizer.Location):
             split.append(names)
         return ".".join(split)
 
+    def copy(self, container=None, name=None):
+        """Return a self-contained copy of this Node,
+        recursively copying any mutable child nodes.
+
+        container and named are passed to the constructor.
+        """
+        if self.__class__ is Node:
+            return Node(container, name, self)
+        else:
+            return self.__class__(self, container, name, self)
+
 
 class Link(Node):
     """A temporary symbolic link to another item."""
@@ -220,23 +231,22 @@ class Link(Node):
         :type location: :class:`Location <coil.tokenizer.Location>`
         """
         super(Link, self).__init__(container, name, location)
+        if isinstance(path, Link):
+            path = path.path
         #self.link_path = self.absolute_path(path)
         self.path = path
 
     def __repr__(self):
         return "%s(%s)" % (self.__class__.__name__, repr(self.path))
 
-class List(list, Node):
+class List(Node, list):
     """A list that can copy itself recursively"""
 
     def __init__(self, sequence=(), container=None, name=None, location=None):
         list.__init__(self, _copy_list_contents(sequence, self.__class__))
         Node.__init__(self, container, name, location)
 
-    def copy(self):
-        return self.__class__(self)
-
-class Struct(OrderedDict, Node):
+class Struct(Node, OrderedDict):
     """A dict-like object for use in trees."""
 
     EXPAND = re.compile(r'\$\{(%s)\}' % tokenizer.Tokenizer.PATH_REGEX)
@@ -266,7 +276,12 @@ class Struct(OrderedDict, Node):
 
         # load base and recursively copy any mutable types
         for key, value in getattr(base, 'iteritems', base.__iter__)():
-            if isinstance(value, dict):
+            if isinstance(value, Struct):
+                # This can be covered by Node once StructPrototype is gone
+                self._set(key, self.__class__(value, self, key))
+            elif isinstance(value, Node):
+                self._set(key, value.copy(self, key))
+            elif isinstance(value, dict):
                 self._set(key, self.__class__(value, self, key))
             elif isinstance(value, list):
                 self._set(key, List(value))
@@ -627,11 +642,6 @@ class Struct(OrderedDict, Node):
             return keys
 
         return unexpanded_list(self.values())
-
-    def copy(self, container=None, name=None):
-        """Recursively copy this :class:`Struct`"""
-
-        return self.__class__(self, container=container, name=name)
 
     def dict(self):
         """Recursively copy this :class:`Struct` into normal *dict* objects"""
