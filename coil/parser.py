@@ -124,11 +124,14 @@ class StructPrototype(struct.Struct):
             if isinstance(value, struct.Link):
                 value = value.copy(self, key)
 
+            if isinstance(value, basestring):
+                leaf = struct.Leaf(value, base, key)
+                leaf = leaf.copy(self, key)
+                value = leaf.leaf_value
+
             # Convert absolute to relative links if required
             if relative:
-                if isinstance(value, basestring):
-                    value = struct.Struct.EXPAND.sub(relativestr, value)
-                elif isinstance(value, list):
+                if isinstance(value, list):
                     value = relativelist(value)
 
             self._secondary_values[key] = value

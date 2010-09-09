@@ -77,6 +77,7 @@ class Node(tokenizer.Location):
 
     KEY = re.compile(r'^%s$' % tokenizer.Tokenizer.KEY_REGEX)
     PATH = re.compile(r'^%s$' % tokenizer.Tokenizer.PATH_REGEX)
+    EXPAND = re.compile(r'\$\{(%s)\}' % tokenizer.Tokenizer.PATH_REGEX)
 
     #: The parent node in the coil tree
     container = None
@@ -211,6 +212,22 @@ class Node(tokenizer.Location):
             split.append(names)
         return ".".join(split)
 
+    def _translate_path(self, old_path, old_ref, new_ref):
+        """Helper method for translating absolute paths while coping
+        a portion of a coil tree. Used by the Leaf and Link classes.
+
+        If the node new_ref is part of a different coil tree as old_ref
+        and their paths in the two trees differ the old @root is not
+        refers to an entirely different node than the new @root.
+        """
+        if (old_ref.tree_root is not new_ref.tree_root and
+                old_ref.node_path != new_ref.node_path and
+                old_path.startswith("@root")):
+            rel_path = old_ref.relative_path(old_path)
+            return new_ref.absolute_path(rel_path)
+        else:
+            return old_path
+
     def copy(self, container=None, name=None):
         """Return a self-contained copy of this Node,
         recursively copying any mutable child nodes.
@@ -223,13 +240,57 @@ class Node(tokenizer.Location):
             return self.__class__(self, container, name, self)
 
 
+class Leaf(Node):
+    """A single value such as str, int, etc"""
+
+    # TODO: test unicode
+
+    def __init__(self, value, container, name, location=None):
+        """
+        Note: container and name are required.
+
+        :param path: A string, number, boolean, etc.
+        :param container: the parent *Struct* of this *Node*.
+        :type container: :class:`Struct`
+        :param name: The name of this *Node* in *container*.
+        :type name: str
+        :param location: original file location from the tokenizer
+        :type location: :class:`Location <coil.tokenizer.Location>`
+        """
+        super(Leaf, self).__init__(container, name, location)
+        self.leaf_value = value
+
+        # Check that any links don't pass @root
+        if isinstance(value, basestring):
+            self._is_string = True
+            for match in self.EXPAND.finditer(value):
+                container.absolute_path(match.group(1))
+        else:
+            self._is_string = False
+
+    def copy(self, container, name):
+        def fixpath(match):
+            return "${%s}" % self._translate_path(match.group(1),
+                    self.container, container)
+
+        if self._is_string:
+            value = self.EXPAND.sub(fixpath, self.leaf_value)
+            return self.__class__(value, container, name, self)
+        else:
+            value = self.leaf_value
+
+        return self.__class__(leaf_value, container, name, self)
+
+    def __repr__(self):
+        return "%s(%r)" % (self.__class__.__name__, self.leaf_value)
+
+
 class Link(Node):
     """A temporary symbolic link to another item."""
 
     def __init__(self, path, container, name, location=None):
         """
-        Note: unlike other subclasses of :class:`Node` the container
-        information is required. Links require context.
+        Note: container and name are required.
 
         :param path: An absolute or relative path to point at.
         :type path: str
@@ -250,16 +311,8 @@ class Link(Node):
         return self.link_path
 
     def copy(self, container, name):
-        link_path = self.link_path
-        if (container.tree_root is not self.tree_root and
-                container.node_path != self.container.node_path and
-                link_path.startswith("@root")):
-            # The structure of this coil tree has changed, translate
-            # our old absolute path into a new one that points to the
-            # same relative position in the tree.
-            rel_path = self.container.relative_path(self.link_path)
-            link_path = container.absolute_path(rel_path)
-
+        link_path = self._translate_path(self.link_path,
+                                         self.container, container)
         return self.__class__(link_path, container, name, self)
 
     def __repr__(self):
@@ -274,8 +327,6 @@ class List(Node, list):
 
 class Struct(Node, OrderedDict):
     """A dict-like object for use in trees."""
-
-    EXPAND = re.compile(r'\$\{(%s)\}' % tokenizer.Tokenizer.PATH_REGEX)
 
     #: Signal :meth:`get` to raise an error if key is not found
     _raise = object()
