@@ -275,11 +275,10 @@ class Leaf(Node):
 
         if self._is_string:
             value = self.EXPAND.sub(fixpath, self.leaf_value)
-            return self.__class__(value, container, name, self)
         else:
             value = self.leaf_value
 
-        return self.__class__(leaf_value, container, name, self)
+        return self.__class__(value, container, name, self)
 
     def __repr__(self):
         return "%s(%r)" % (self.__class__.__name__, self.leaf_value)
