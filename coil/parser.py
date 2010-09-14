@@ -27,6 +27,7 @@ class StructPrototype(struct.Struct):
         # but have been removed from this Struct by ~foo tokens.
         self._deleted = []
 
+        self._cls_struct = StructPrototype
         super(StructPrototype, self).__init__(base, container, name, location)
 
     def _get(self, key):

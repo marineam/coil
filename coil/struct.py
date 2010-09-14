@@ -11,6 +11,7 @@ as a tree and can handle relative references between them.
 from __future__ import generators
 
 import re
+import warnings
 try:
     from collections import OrderedDict
 except ImportError:
@@ -93,6 +94,14 @@ class Node(tokenizer.Location):
     #: The root node of the coil tree
     tree_root = None
 
+    # Node classes should access others through these attributes,
+    # otherwise users would have trouble with subclasses. The actual
+    # values are set at the end of this file once they are defined.
+    _cls_leaf = None
+    _cls_link = None
+    _cls_list = None
+    _cls_struct = None
+
     def __init__(self, container=None, name=None, location=None):
         """
         :param container: the parent *Struct* of this *Node*.
@@ -109,6 +118,10 @@ class Node(tokenizer.Location):
         if self.container is not None and self.container is container:
             pass
         elif container is not None and name:
+            # Sanity check that container is valid
+            assert container.tree_root is not None
+            assert container.node_name
+            assert container.node_path
             self.container = container
             self.node_name = name
             self.node_path = "%s.%s" % (container.node_path, name)
@@ -305,6 +318,26 @@ class Node(tokenizer.Location):
             else:
                 raise
 
+    def _wrap(self, key, value, container=None):
+        """Helper for wrapping/copying values when adding them"""
+
+        if container is None:
+            container = self
+
+        if isinstance(value, Node):
+            value._set_container(container, key)
+            return value
+        elif isinstance(value, dict):
+            return self._cls_struct(value, container, key)
+        elif isinstance(value, list):
+            return self._cls_list(value, container, key)
+        else:
+            return self._cls_leaf(value, container, key)
+
+    def _pystd(self):
+        """Generic method for converting Nodes to standard objects."""
+        raise NotImplementedError()
+
 
 class Leaf(Node):
     """A single value such as str, int, etc"""
@@ -323,6 +356,7 @@ class Leaf(Node):
         :param location: original file location from the tokenizer
         :type location: :class:`Location <coil.tokenizer.Location>`
         """
+        assert container is not None and name
         super(Leaf, self).__init__(container, name, location)
         self.leaf_value = value
 
@@ -333,6 +367,31 @@ class Leaf(Node):
                 container.absolute_path(match.group(1))
         else:
             self._is_string = False
+
+    @staticmethod
+    def __other(other):
+        if isinstance(other, Leaf):
+            return other.leaf_value
+        else:
+            return other
+
+    def __eq__(self, other):
+        return self.leaf_value == self.__other(other)
+
+    def __ne__(self, other):
+        return self.leaf_value != self.__other(other)
+
+    def __lt__(self, other):
+        return self.leaf_value < self.__other(other)
+
+    def __le__(self, other):
+        return self.leaf_value <= self.__other(other)
+
+    def __gt__(self, other):
+        return self.leaf_value > self.__other(other)
+
+    def __ge__(self, other):
+        return self.leaf_value >= self.__other(other)
 
     def copy(self, container, name):
         def fixpath(match):
@@ -345,6 +404,9 @@ class Leaf(Node):
             value = self.leaf_value
 
         return self.__class__(value, container, name, self)
+
+    def _pystd(self):
+        return self.leaf_value
 
     def _expand(self, defaults, ignore_missing, block):
         if not self._is_string:
@@ -382,6 +444,7 @@ class Link(Node):
         :param location: original file location from the tokenizer
         :type location: :class:`Location <coil.tokenizer.Location>`
         """
+        assert container is not None and name
         super(Link, self).__init__(container, name, location)
         # Check that the link doesn't pass @root
         container.absolute_path(path)
@@ -395,6 +458,10 @@ class Link(Node):
         link_path = self._translate_path(self.link_path,
                                          self.container, container)
         return self.__class__(link_path, container, name, self)
+
+    def _pystd(self):
+        warnings.warn("Links cannot convert to built-in types")
+        return self
 
     def __repr__(self):
         return "%s(%s)" % (self.__class__.__name__, repr(self.path))
@@ -421,16 +488,50 @@ class List(Node, list):
         :param location: original file location from the tokenizer
         :type location: :class:`Location <coil.tokenizer.Location>`
         """
-
-        def copy_items(seq):
-            for item in seq:
-                if isinstance(item, list):
-                    yield self.__class__(item, container, '+list+')
-                else:
-                    yield item
-
-        list.__init__(self, copy_items(sequence))
+        list.__init__(self)
         Node.__init__(self, container, name, location)
+        self.extend(sequence)
+
+    # Raw get/set/del functions
+    _get = list.__getitem__
+    _set = list.__setitem__
+    _del = list.__delitem__
+
+    def _wrap(self, key, value, container=None):
+        # container self.container instead of self
+        if container is None:
+            container = self.container
+        return super(List, self)._wrap(key, value, container)
+
+    def __getitem__(self, index):
+        value = self._get(index)
+        if isinstance(value, Leaf):
+            return value.leaf_value
+        else:
+            return value
+
+    def pop(self, index):
+        value = list.pop(self, index)
+        if isinstance(value, Leaf):
+            return value.leaf_value
+        else:
+            return value
+
+    def __setitem__(self, index, value):
+        self._set(index, self._wrap('+list+', value))
+
+    def append(self, value):
+        list.append(self, self._wrap('+list+', value))
+
+    def insert(self, index, value):
+        list.insert(self, index, self._wrap('+list+', value))
+
+    def extend(self, sequence):
+        list.extend(self, (self._wrap('+list+', x) for x in sequence))
+
+    def __iter__(self):
+        for i in xrange(len(self)):
+            yield self[i]
 
     def copy(self, container, name):
         def copy_items(seq):
@@ -445,6 +546,22 @@ class List(Node, list):
         new = self.__class__((), container, name)
         new.extend(copy_items(self))
         return new
+
+    def list(self):
+        """Recursively copy this :class:`Struct` into :class:`list` objects"""
+
+        def copy_items(seq):
+            for item in seq:
+                if isinstance(item, list):
+                    yield list(item)
+                elif isinstance(item, Node):
+                    yield item._pystd()
+                else:
+                    yield item
+
+        return list(copy_items(self))
+
+    _pystd = list
 
     def _expand(self, defaults, ignore_missing, block):
         super(List, self)._expand(defaults, ignore_missing, block)
@@ -490,15 +607,11 @@ class Struct(Node, OrderedDict):
         for key, value in getattr(base, 'iteritems', base.__iter__)():
             if isinstance(value, Struct):
                 # This can be covered by Node once StructPrototype is gone
-                self._set(key, self.__class__(value, self, key))
+                self._set(key, self.__class__(value, self, key, value))
             elif isinstance(value, Node):
                 self._set(key, value.copy(self, key))
-            elif isinstance(value, dict):
-                self._set(key, self.__class__(value, self, key))
-            elif isinstance(value, list):
-                self._set(key, List(value, self, key))
             else:
-                self._set(key, value)
+                self._set(key, self._wrap(key, value))
 
     # Raw get/set/del functions
     _get = OrderedDict.__getitem__
@@ -553,6 +666,8 @@ class Struct(Node, OrderedDict):
             else:
                 try:
                     value = self._get(key)
+                    if isinstance(value, Leaf):
+                        value = value.leaf_value
                 except KeyError:
                     if default is self._raise:
                         raise errors.KeyMissingError(self, key)
@@ -581,10 +696,7 @@ class Struct(Node, OrderedDict):
             if not key or not self.KEY.match(key):
                 raise errors.KeyValueError(self, key)
 
-            if isinstance(value, Struct):
-                value._set_container(self, key)
-
-            self._set(key, value)
+            self._set(key, self._wrap(key, value))
         else:
             parent.set(key, value, location)
 
@@ -860,8 +972,8 @@ class Struct(Node, OrderedDict):
 
         new = {}
         for key, value in self.iteritems():
-            if isinstance(value, Struct):
-                value = value.dict()
+            if isinstance(value, Node):
+                value = value._pystd()
             elif isinstance(value, dict):
                 value = value.copy()
             elif isinstance(value, list):
@@ -869,6 +981,8 @@ class Struct(Node, OrderedDict):
             new[key] = value
 
         return new
+
+    _pystd = dict
 
     def path(self, path=None):
         """Get the absolute path of this :class:`Struct` if path is
@@ -1006,6 +1120,13 @@ class Struct(Node, OrderedDict):
             parent, path = self._get_next_parent(path, add_parents)
 
         return parent, path
+
+
+# Set the default Node class types
+Node._cls_leaf = Leaf
+Node._cls_link = Link
+Node._cls_list = List
+Node._cls_struct = Struct
 
 
 #: For compatibility with Coil <= 0.2.2, use KeyError or KeyMissingError
