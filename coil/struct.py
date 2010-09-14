@@ -542,51 +542,41 @@ class List(Node, list):
         list.insert(self, index, self._wrap('+list+', value))
 
     def extend(self, sequence):
-        list.extend(self, (self._wrap('+list+', x) for x in sequence))
+        if isinstance(sequence, List):
+            def copy_items():
+                """Copy items from another List"""
+                for i in xrange(len(sequence)):
+                    item = sequence._get(i)
+                    yield item.copy(self.container, '+list+')
+        else:
+            def copy_items():
+                """Copy items from anything else"""
+                for x in sequence:
+                    yield self._wrap('+list+', x)
+
+        list.extend(self, copy_items())
 
     def __iter__(self):
         for i in xrange(len(self)):
             yield self[i]
 
-    def copy(self, container, name):
-        def copy_items(seq):
-            for item in seq:
-                if isinstance(item, List):
-                    yield item.copy(container, '+list+')
-                else:
-                    leaf = Leaf(item, self.container, '+list+')
-                    leaf = leaf.copy(container, '+list+')
-                    yield leaf.leaf_value
-
-        new = self.__class__((), container, name)
-        new.extend(copy_items(self))
-        return new
-
     def list(self):
-        """Recursively copy this :class:`Struct` into :class:`list` objects"""
+        """Recursively copy this :class:`List` into :class:`list` objects"""
 
-        def copy_items(seq):
-            for item in seq:
-                if isinstance(item, list):
-                    yield list(item)
-                elif isinstance(item, Node):
-                    yield item._pystd()
-                else:
-                    yield item
+        def copy_items():
+            for i in xrange(len(self)):
+                item = self._get(i)
+                yield item._pystd()
 
-        return list(copy_items(self))
+        return list(copy_items())
 
     _pystd = list
 
-    def _expand(self, defaults, ignore_missing, recursive, block):
-        super(List, self)._expand(defaults, ignore_missing, recursive, block)
-        for i, item in enumerate(self):
-            if isinstance(item, Node):
-                item._expand(defaults, ignore_missing, recursive, set(block))
-            else:
-                leaf = Leaf(item, self.container, '+list+')
-                leaf._expand(defaults, ignore_missing, recursieve, set(block))
-                self[i] = leaf.leaf_value
+    def _expand(self, defaults, ignore_missing, block):
+        super(List, self)._expand(defaults, ignore_missing, block)
+        for i in xrange(len(self)):
+            item = self._get(i)
+            item._expand(defaults, ignore_missing, set(block))
 
     def __repr__(self):
         return "%s(%s)" % (self.__class__.__name__, list.__repr__(self))
