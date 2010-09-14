@@ -77,29 +77,6 @@ class StructPrototype(struct.Struct):
             Used when extending a Struct from another file.
         """
 
-        def relativeize(path):
-            if not path.startswith("@root"):
-                return path
-            else:
-                new = ""
-                container = base
-                while container.container:
-                    container = container.container
-                    new += "."
-                new += path[5:]
-                return new
-
-        def relativestr(match):
-            return "${%s}" % relativeize(match.group(1))
-
-        def relativelist(old):
-            new = struct.List()
-            for item in old:
-                if isinstance(item, basestring):
-                    item = struct.Struct.EXPAND.sub(relativestr, item)
-                new.append(item)
-            return new
-
         if base is self:
             raise errors.StructError(self,
                 "Struct cannot extend itself.")
@@ -121,18 +98,13 @@ class StructPrototype(struct.Struct):
                 new.extends(value, relative)
                 value = new
 
-            if isinstance(value, struct.Link):
+            elif isinstance(value, struct.Node):
                 value = value.copy(self, key)
 
-            if isinstance(value, basestring):
+            elif isinstance(value, basestring):
                 leaf = struct.Leaf(value, base, key)
                 leaf = leaf.copy(self, key)
                 value = leaf.leaf_value
-
-            # Convert absolute to relative links if required
-            if relative:
-                if isinstance(value, list):
-                    value = relativelist(value)
 
             self._secondary_values[key] = value
             self._secondary_order.append(key)
@@ -278,7 +250,7 @@ class Parser(object):
     def _parse_list(self, container, name):
         """[ number or string or list ... ]"""
 
-        new = struct.List()
+        new = struct.List((), container, name)
         container[name] = new
         self._parse_list_values(new)
 
@@ -290,7 +262,7 @@ class Parser(object):
 
         while token.type != ']':
             if token.type == '[':
-                new = struct.List()
+                new = struct.List((), container, '+list+')
                 container.append(new)
                 self._parse_list_values(new)
             else:

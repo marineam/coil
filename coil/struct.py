@@ -60,16 +60,17 @@ def _expand_list(seq):
 
     return new
 
-def _copy_list_contents(seq, cls=list):
+def _copy_list(seq):
     """Recursively copy a list of lists"""
-    for item in seq:
-        if isinstance(item, list):
-            yield cls(_copy_list_contents(item))
-        else:
-            yield item
 
-def _copy_list(seq, cls=list):
-    return cls(_copy_list_contents(seq, cls))
+    def copy_items(seq):
+        for item in seq:
+            if isinstance(item, list):
+                yield list(copy_items(item))
+            else:
+                yield item
+
+    return list(copy_items(seq))
 
 
 class Node(tokenizer.Location):
@@ -320,9 +321,53 @@ class Link(Node):
 class List(Node, list):
     """A list that can copy itself recursively"""
 
-    def __init__(self, sequence=(), container=None, name=None, location=None):
-        list.__init__(self, _copy_list_contents(sequence, self.__class__))
+    # FIXME Note: things are a little weird in this class because paths
+    # in its items are relative to the parent Struct rather than this
+    # List so we give child Leaf and List nodes the parent container
+    # rather than self. Some day I want to support indexing into arrays
+    # which will clean this up.
+
+    def __init__(self, sequence, container, name, location=None):
+        """
+        Note: container and name are required.
+
+        :param sequence: a sequence of items to add to the list
+        :type path: iter
+        :param container: the parent *Struct* of this *Node*.
+        :type container: :class:`Struct`
+        :param name: The name of this *Node* in *container*.
+        :type name: str
+        :param location: original file location from the tokenizer
+        :type location: :class:`Location <coil.tokenizer.Location>`
+        """
+
+        def copy_items(seq):
+            for item in seq:
+                if isinstance(item, list):
+                    yield self.__class__(item, container, '+list+')
+                else:
+                    yield item
+
+        list.__init__(self, copy_items(sequence))
         Node.__init__(self, container, name, location)
+
+    def copy(self, container, name):
+        def copy_items(seq):
+            for item in seq:
+                if isinstance(item, List):
+                    yield item.copy(container, '+list+')
+                else:
+                    leaf = Leaf(item, self.container, '+list+')
+                    leaf = leaf.copy(container, '+list+')
+                    yield leaf.leaf_value
+
+        new = self.__class__((), container, name)
+        new.extend(copy_items(self))
+        return new
+
+    def __repr__(self):
+        return "%s(%s)" % (self.__class__.__name__, list.__repr__(self))
+
 
 class Struct(Node, OrderedDict):
     """A dict-like object for use in trees."""
@@ -360,7 +405,7 @@ class Struct(Node, OrderedDict):
             elif isinstance(value, dict):
                 self._set(key, self.__class__(value, self, key))
             elif isinstance(value, list):
-                self._set(key, List(value))
+                self._set(key, List(value, self, key))
             else:
                 self._set(key, value)
 
