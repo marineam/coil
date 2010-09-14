@@ -408,7 +408,7 @@ class Leaf(Node):
     def _pystd(self):
         return self.leaf_value
 
-    def _expand(self, defaults, ignore_missing, block):
+    def _expand(self, defaults, ignore_missing, recursive, block):
         if not self._is_string:
             return
 
@@ -421,7 +421,7 @@ class Leaf(Node):
             return strcls(self._fetch(match.group(1), self.container,
                                       defaults, ignore_missing, block))
 
-        super(Leaf, self)._expand(defaults, ignore_missing, block)
+        super(Leaf, self)._expand(defaults, ignore_missing, recursive, block)
         self.leaf_value = self.EXPAND.sub(getpath, self.leaf_value)
 
     def __repr__(self):
@@ -563,14 +563,14 @@ class List(Node, list):
 
     _pystd = list
 
-    def _expand(self, defaults, ignore_missing, block):
-        super(List, self)._expand(defaults, ignore_missing, block)
+    def _expand(self, defaults, ignore_missing, recursive, block):
+        super(List, self)._expand(defaults, ignore_missing, recursive, block)
         for i, item in enumerate(self):
             if isinstance(item, Node):
-                item._expand(defaults, ignore_missing, set(block))
+                item._expand(defaults, ignore_missing, recursive, set(block))
             else:
                 leaf = Leaf(item, self.container, '+list+')
-                leaf._expand(defaults, ignore_missing, set(block))
+                leaf._expand(defaults, ignore_missing, recursieve, set(block))
                 self[i] = leaf.leaf_value
 
     def __repr__(self):
