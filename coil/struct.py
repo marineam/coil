@@ -739,7 +739,7 @@ class Struct(Node, OrderedDict):
                 current = self._get(key)
                 if (hasattr(value, 'iteritems') and
                         isinstance(current, Struct)):
-                    current._extend(value, replace)
+                    current._extend(value, recursive=True)
                     return
 
             if isinstance(value, Struct):
