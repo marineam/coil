@@ -39,6 +39,16 @@ class NodeError(CoilError):
         else:
             return "<%s> %s" % (self.node_path, self.reason)
 
+class CircularReference(NodeError):
+    """Failed to resolve a :class:`Link` or other reference
+    due to a circular reference in the coil tree.
+    """
+
+    def __init__(self, node, link_path):
+        self.link_path = link_path
+        reason = "Circular reference to %s" % link_path
+        super(NodeError, self).__init__(node, reason)
+
 class StructError(NodeError):
     """Generic error for :class:`coil.struct.Struct` objects"""
 

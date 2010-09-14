@@ -73,6 +73,10 @@ def _copy_list(seq):
     return list(copy_items(seq))
 
 
+class _Ignore(Exception):
+    """Special exception to signal that a value should not be expanded"""
+
+
 class Node(tokenizer.Location):
     """The base class for elements in a coil tree"""
 
@@ -240,6 +244,67 @@ class Node(tokenizer.Location):
         else:
             return self.__class__(self, container, name, self)
 
+    def expand(self, defaults=(), ignore_missing=(), recursive=True):
+        """Expand this :class:`Node` and possibly any child nodes if
+        recursion is enabled. This handles @extends, @file, links, etc.
+        The coil tree is modified in place and all link information is
+        list in the process. If you wish to expand the same coil tree
+        with a few values or parameters you must copy it first.
+
+        Normally this step is performed immediately after parsing the
+        source coil file but it may be useful to have more control.
+
+        :param defaults: default values to use if undefined.
+        :type defaults: :class:`dict`
+        :param ignore_missing: a set of keys that are ignored if
+            undefined and not in defaults. If simply set to True
+            then all are ignored. Otherwise raise
+            :exc:`~errors.KeyMissingError`.
+        :type ignore_missing: :class:`bool` or container
+        """
+        self._expand(defaults, ignore_missing, recursive, set())
+
+    def _expand(self, defaults, ignore_missing, recursive, block):
+        """Internal method implementing :meth:`expand`.
+
+        Note: when calling this function recursively always duplciate
+
+        :param block: a set of absolute paths that cannot be expanded.
+                      This is used to detect any circular references.
+                      When calling recursively always pass a new object.
+        :type block: :class:`set`
+        """
+
+        if self.node_path in block:
+            raise errors.CircularReference(self, self.node_path)
+        elif self.node_name != "+list+":
+            # Lists are special right now since the nodes
+            # inside them don't have paths.
+            block.add(self.node_path)
+
+    def _fetch(self, path, ref, defaults, ignore_missing, block):
+        """Helper method for :meth:`_expand` for getting values.
+        This implements the magic of defaults and ignore_missing.
+        """
+
+        path = ref.absolute_path(path)
+        if path in block:
+            raise errors.CircularReference(self, path)
+
+        try:
+            return ref.get(path)
+        except KeyError:
+            base = path.rsplit('.', 1)[-1]
+
+            if path in defaults:
+                return defaults[path]
+            elif base in defaults:
+                return defaults[base]
+            elif path in ignore_missing or base in ignore_missing:
+                raise _Ignore()
+            else:
+                raise
+
 
 class Leaf(Node):
     """A single value such as str, int, etc"""
@@ -280,6 +345,22 @@ class Leaf(Node):
             value = self.leaf_value
 
         return self.__class__(value, container, name, self)
+
+    def _expand(self, defaults, ignore_missing, block):
+        if not self._is_string:
+            return
+
+        if isinstance(self.leaf_value, unicode):
+            strcls = unicode
+        else:
+            strcls = str
+
+        def getpath(match):
+            return strcls(self._fetch(match.group(1), self.container,
+                                      defaults, ignore_missing, block))
+
+        super(Leaf, self)._expand(defaults, ignore_missing, block)
+        self.leaf_value = self.EXPAND.sub(getpath, self.leaf_value)
 
     def __repr__(self):
         return "%s(%r)" % (self.__class__.__name__, self.leaf_value)
@@ -364,6 +445,16 @@ class List(Node, list):
         new = self.__class__((), container, name)
         new.extend(copy_items(self))
         return new
+
+    def _expand(self, defaults, ignore_missing, block):
+        super(List, self)._expand(defaults, ignore_missing, block)
+        for i, item in enumerate(self):
+            if isinstance(item, Node):
+                item._expand(defaults, ignore_missing, set(block))
+            else:
+                leaf = Leaf(item, self.container, '+list+')
+                leaf._expand(defaults, ignore_missing, set(block))
+                self[i] = leaf.leaf_value
 
     def __repr__(self):
         return "%s(%s)" % (self.__class__.__name__, list.__repr__(self))
