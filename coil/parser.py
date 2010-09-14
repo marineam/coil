@@ -89,23 +89,22 @@ class StructPrototype(struct.Struct):
         if base._map is not None and self._map is None:
             self._map = list(base._map)
 
-        for key, value in base.iteritems():
+        for key in base:
             if key in self or key in self._deleted:
                 continue
+
+            # Use the raw value, don't unwrap
+            value = base._get(key)
 
             # Copy child Structs so that they can be edited independently
             if isinstance(value, struct.Struct):
                 new = self.__class__(container=self, name=key)
                 new.extends(value, relative)
                 value = new
-
             elif isinstance(value, struct.Node):
                 value = value.copy(self, key)
-
-            elif isinstance(value, basestring):
-                leaf = struct.Leaf(value, base, key)
-                leaf = leaf.copy(self, key)
-                value = leaf.leaf_value
+            else:
+                raise Exception("Unexpected type %s" % type(value))
 
             self._secondary_values[key] = value
             self._secondary_order.append(key)
