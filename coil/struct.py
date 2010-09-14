@@ -102,7 +102,7 @@ class Node(tokenizer.Location):
     _cls_list = None
     _cls_struct = None
 
-    def __init__(self, container=None, name=None, location=None):
+    def __init__(self, value=None, container=None, name=None, location=None):
         """
         :param container: the parent *Struct* of this *Node*.
         :type container: :class:`Struct`
@@ -113,6 +113,13 @@ class Node(tokenizer.Location):
         """
         super(Node, self).__init__(location)
         self._set_container(container, name)
+
+        # For paths we must know their original context in order
+        # to copy them to new parts of the tree properly.
+        if isinstance(value, Node):
+            self._orig = value._orig
+        else:
+            self._orig = self
 
     def _set_container(self, container, name):
         if self.container is not None and self.container is container:
@@ -230,19 +237,26 @@ class Node(tokenizer.Location):
             split.append(names)
         return ".".join(split)
 
-    def _translate_path(self, old_path, old_ref, new_ref):
-        """Helper method for translating absolute paths while coping
-        a portion of a coil tree. Used by the Leaf and Link classes.
+    def _translate_path(self, old_path, old_node):
+        """Helper method for translating absolute paths between trees.
 
-        If the node new_ref is part of a different coil tree as old_ref
-        and their paths in the two trees differ the old @root is not
-        refers to an entirely different node than the new @root.
+        NOTE: Only valid for Link/Leaf translation!
+
+        If the node being copied was originally defined in a different
+        any absolute paths must be translated because @root in that tree
+        may not refer to the same node as @root does in this tree.
+
+        The original location is significant. We don't actually care
+        what tree old_node itself is in because nodes can be copied
+        multiple times. We also never want to translate if the tree has
+        not changed because @root does refer to the same thing so the
+        relative path is exactly the wrong thing to look at.
         """
-        if (old_ref.tree_root is not new_ref.tree_root and
-                old_ref.node_path != new_ref.node_path and
+        if (old_node._orig.tree_root is not self.tree_root and
                 old_path.startswith("@root")):
-            rel_path = old_ref.relative_path(old_path)
-            return new_ref.absolute_path(rel_path)
+            rel_path = old_node.container.relative_path(old_path)
+            new_path = self.container.absolute_path(rel_path)
+            return new_path
         else:
             return old_path
 
@@ -250,12 +264,9 @@ class Node(tokenizer.Location):
         """Return a self-contained copy of this Node,
         recursively copying any mutable child nodes.
 
-        container and named are passed to the constructor.
+        container and name are passed to the constructor.
         """
-        if self.__class__ is Node:
-            return Node(container, name, self)
-        else:
-            return self.__class__(self, container, name, self)
+        return self.__class__(self, container, name, self)
 
     def expand(self, defaults=(), ignore_missing=(), recursive=True):
         """Expand this :class:`Node` and possibly any child nodes if
@@ -357,16 +368,33 @@ class Leaf(Node):
         :type location: :class:`Location <coil.tokenizer.Location>`
         """
         assert container is not None and name
-        super(Leaf, self).__init__(container, name, location)
-        self.leaf_value = value
+        super(Leaf, self).__init__(value, container, name, location)
 
-        # Check that any links don't pass @root
-        if isinstance(value, basestring):
-            self._is_string = True
-            for match in self.EXPAND.finditer(value):
-                container.absolute_path(match.group(1))
+        def translate(match):
+            return "${%s}" % self._translate_path(match.group(1), value)
+
+        def verify(match):
+            container.absolute_path(match.group(1))
+
+        if isinstance(value, Leaf):
+            if value._is_string:
+                self._is_string = True
+                self.leaf_value = self.EXPAND.sub(
+                        translate, value.leaf_value)
+            else:
+                self._is_string = False
+                self.leaf_value = value.leaf_value
         else:
-            self._is_string = False
+            if isinstance(value, basestring):
+                self._is_string = True
+                self.leaf_value = value
+                # Check that any links don't pass @root
+                self.EXPAND.sub(verify, value)
+            elif value is None or isinstance(value, (int, long, float)):
+                self._is_string = False
+                self.leaf_value = value
+            else:
+                raise TypeError("Invalid value type: %s" % type(value))
 
     @staticmethod
     def __other(other):
@@ -392,18 +420,6 @@ class Leaf(Node):
 
     def __ge__(self, other):
         return self.leaf_value >= self.__other(other)
-
-    def copy(self, container, name):
-        def fixpath(match):
-            return "${%s}" % self._translate_path(match.group(1),
-                    self.container, container)
-
-        if self._is_string:
-            value = self.EXPAND.sub(fixpath, self.leaf_value)
-        else:
-            value = self.leaf_value
-
-        return self.__class__(value, container, name, self)
 
     def _pystd(self):
         return self.leaf_value
@@ -445,19 +461,18 @@ class Link(Node):
         :type location: :class:`Location <coil.tokenizer.Location>`
         """
         assert container is not None and name
-        super(Link, self).__init__(container, name, location)
-        # Check that the link doesn't pass @root
-        container.absolute_path(path)
-        self.link_path = path
+        super(Link, self).__init__(path, container, name, location)
+
+        if isinstance(path, Link):
+            self.link_path = self._translate_path(path.link_path, path)
+        else:
+            self.link_path = path
+            # Check that link doesn't pass @root
+            container.absolute_path(path)
 
     @property
     def path(self):
         return self.link_path
-
-    def copy(self, container, name):
-        link_path = self._translate_path(self.link_path,
-                                         self.container, container)
-        return self.__class__(link_path, container, name, self)
 
     def _pystd(self):
         warnings.warn("Links cannot convert to built-in types")
@@ -489,7 +504,7 @@ class List(Node, list):
         :type location: :class:`Location <coil.tokenizer.Location>`
         """
         list.__init__(self)
-        Node.__init__(self, container, name, location)
+        Node.__init__(self, sequence, container, name, location)
         self.extend(sequence)
 
     # Raw get/set/del functions
@@ -597,7 +612,7 @@ class Struct(Node, OrderedDict):
             <coil.parser.Parser>`.
         """
         OrderedDict.__init__(self)
-        Node.__init__(self, container, name, location)
+        Node.__init__(self, base, container, name, location)
 
         # the list of child structs if this is a map, this map
         # copy kludge probably can go away when StructPrototype does.

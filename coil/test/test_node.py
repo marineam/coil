@@ -8,8 +8,8 @@ class BasicTestCase(unittest.TestCase):
 
     def testInit(self):
         r = Node()
-        a = Node(r, "a")
-        b = Node(a, "b")
+        a = Node(None, r, "a")
+        b = Node(None, a, "b")
         self.assertEquals(b.node_name, "b")
         self.assertEquals(b.node_path, "@root.a.b")
         self.assert_(b.container is a)
@@ -19,8 +19,8 @@ class PathTestCase(unittest.TestCase):
 
     def setUp(self):
         self.r = Node()
-        self.a = Node(self.r, "a")
-        self.b = Node(self.a, "b")
+        self.a = Node(None, self.r, "a")
+        self.b = Node(None, self.a, "b")
 
     def testRelative(self):
         self.assertEquals(self.r.relative_path("@root"), ".")

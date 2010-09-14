@@ -8,8 +8,8 @@ class BasicTestCase(unittest.TestCase):
 
     def setUp(self):
         self.r = Node()
-        self.a = Node(self.r, "a")
-        self.b = Node(self.a, "b")
+        self.a = Node(None, self.r, "a")
+        self.b = Node(None, self.a, "b")
 
     def testInit(self):
         x = List(["string"], self.r, "x")
