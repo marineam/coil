@@ -607,16 +607,7 @@ class Struct(Node, OrderedDict):
         # the list of child structs if this is a map, this map
         # copy kludge probably can go away when StructPrototype does.
         self._map = getattr(base, '_map', None)
-
-        # load base and recursively copy any mutable types
-        for key, value in getattr(base, 'iteritems', base.__iter__)():
-            if isinstance(value, Struct):
-                # This can be covered by Node once StructPrototype is gone
-                self._set(key, self.__class__(value, self, key, value))
-            elif isinstance(value, Node):
-                self._set(key, value.copy(self, key))
-            else:
-                self._set(key, self._wrap(key, value))
+        self._extend(base)
 
     # Raw get/set/del functions
     _get = OrderedDict.__getitem__
@@ -721,22 +712,55 @@ class Struct(Node, OrderedDict):
         else:
             del parent[key]
 
+    def _rawitems(self):
+        for k in self:
+            yield k, self._get(k)
+
+    def update(self, *args, **kwargs):
+        if args:
+            assert len(args) == 1
+            self._extend(args[0])
+        if kwargs:
+            self._extend(kwargs)
+
     def merge(self, other):
         """Recursively merge a coil :class:`Struct` tree.
 
         This is similar to :meth:`update` except that it will update
         the entire subtree rather than just this object.
         """
+        self._extend(other, recursive=True)
 
-        for key, value in other.iteritems():
+    def _extend(self, other, recursive=False):
+        """Helper for update(), and merge()"""
+
+        def setitem(key, value):
+            if recursive and key in self:
+                current = self._get(key)
+                if (hasattr(value, 'iteritems') and
+                        isinstance(current, Struct)):
+                    current._extend(value, replace)
+                    return
+
             if isinstance(value, Struct):
-                dest = self.get(key, None)
-                if not isinstance(dest, Struct):
-                    dest = Struct(container=self, name=key)
-                dest.merge(value)
-                self._set(key, dest)
+                self._set(key, self.__class__(value, self, key, value))
+            elif isinstance(value, Node):
+                self._set(key, value.copy(self, key))
             else:
-                self._set(key, value)
+                self._set(key, self._wrap(key, value))
+
+        if isinstance(other, Struct):
+            for key, value in other._rawitems():
+                setitem(key, value)
+        elif hasattr(other, 'iteritems'):
+            for key, value in other.iteritems():
+                setitem(key, value)
+        elif hasattr(other, 'keys'):
+            for key in other.keys():
+                setitem(key, other[key])
+        else:
+            for key, value in other:
+                setitem(key, value)
 
     def attributes(self):
         """Alias for :meth:`keys`.
