@@ -342,7 +342,7 @@ class Parser(object):
 
         _container = container
         while _container is not None:
-            if _container == parent:
+            if _container is parent:
                 raise errors.StructError(container,
                       "@extends target cannot be parents of container")
             _container = _container.container
