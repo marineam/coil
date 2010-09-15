@@ -176,6 +176,20 @@ class ExpansionTestCase(unittest.TestCase):
         root.expand(ignore_missing=('baz',))
         self.assertEquals(root.get('bar'), "omgwtfbbq${baz}")
 
+    def testExpandIgnoreType(self):
+        root = struct.Struct()
+        root["foo"] = "bbq"
+        root["bar"] = "omgwtf${foo}"
+        root.expand(ignore_types=('strings',))
+        self.assertEquals(root.get('bar'), "omgwtf${foo}")
+        root["lfoo"] = struct.Link("foo")
+        root.expand(ignore_types=('links',))
+        self.assertEquals(root.get('bar'), "omgwtfbbq")
+        self.assert_(isinstance(root.get('lfoo'), struct.Link))
+        root.expand()
+        self.assert_(isinstance(root.get('lfoo'), basestring))
+        self.assertEquals(root.get('lfoo'), "bbq")
+
     def testUnexpanded(self):
         root = struct.Struct()
         root["foo"] = "bbq"

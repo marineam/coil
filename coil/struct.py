@@ -82,6 +82,8 @@ class Struct(tokenizer.Location, DictMixin):
     _raise = object()
     #: Signal :meth:`set` to preserve location data for key
     keep = object()
+    #: All possible types of expansion
+    _expansion_types = frozenset(['links', 'strings'])
 
     # These first methods likely would need to be overridden by subclasses
 
@@ -278,7 +280,8 @@ class Struct(tokenizer.Location, DictMixin):
         for key in self:
             yield key, self[key]
 
-    def expand(self, defaults=(), ignore_missing=(), recursive=True, _block=()):
+    def expand(self, defaults=(), ignore_missing=(), recursive=True,
+               ignore_types=(), _block=()):
         """Expand all :class:`Link` and sub-string variables in this
         and, if recursion is enabled, all child :class:`Struct`
         objects. This is normally called during parsing but may be
@@ -290,6 +293,7 @@ class Struct(tokenizer.Location, DictMixin):
         :param ignore_missing: :meth:`expandvalue`
         :param recursive: recursively expand sub-structs
         :type recursive: *bool*
+        :param ignore_types: :meth:`expandvalue`
         :param _block: See :meth:`expandvalue`
         """
 
@@ -308,7 +312,11 @@ class Struct(tokenizer.Location, DictMixin):
 
             # We don't use iter because this loop delete stuff
             for key, value in self.items():
-                value = self.expanditem(key, defaults, ignore_missing, _block)
+                value = self.expanditem(key,
+                                        defaults=defaults,
+                                        ignore_missing=ignore_missing,
+                                        ignore_types=ignore_types,
+                                        _block=_block)
                 if isinstance(value, Struct):
                     structs.append((key, value))
                     del self[key]
@@ -336,16 +344,29 @@ class Struct(tokenizer.Location, DictMixin):
                         new[item_key] = item_values[i]
 
                     if recursive:
-                        new.expand(defaults, ignore_missing, True, _block)
+                        new.expand(defaults=defaults,
+                                   ignore_missing=ignore_missing,
+                                   ignore_types=ignore_types,
+                                   recursive=True,
+                                   _block=_block)
 
         else:
             for key in self:
-                value = self.expanditem(key, defaults, ignore_missing, _block)
+                value = self.expanditem(key,
+                                        defaults=defaults,
+                                        ignore_missing=ignore_missing,
+                                        ignore_types=ignore_types,
+                                        _block=_block)
                 self.set(key, value, self.keep)
                 if recursive and isinstance(value, Struct):
-                    value.expand(defaults, ignore_missing, True, _block)
+                    value.expand(defaults=defaults,
+                                 ignore_missing=ignore_missing,
+                                 ignore_types=ignore_types,
+                                 recursive=True,
+                                 _block=_block)
 
-    def expanditem(self, path, defaults=(), ignore_missing=(), _block=()):
+    def expanditem(self, path, defaults=(), ignore_missing=(),
+                   ignore_types=(), _block=()):
         """Fetch and expand an item at the given path. All :class:`Link`
         and sub-string variables will be followed in the process. This
         method is a no-op if value is a :class:`Struct`, use the
@@ -356,6 +377,7 @@ class Struct(tokenizer.Location, DictMixin):
         :param path: A key or arbitrary path to get.
         :param defaults: See :meth:`expandvalue`
         :param ignore_missing: See :meth:`expandvalue`
+        :param ignore_types: :meth:`expandvalue`
         :param _block: See :meth:`expandvalue`
         """
 
@@ -378,11 +400,20 @@ class Struct(tokenizer.Location, DictMixin):
                 else:
                     raise
 
-            return self.expandvalue(value, defaults, ignore_missing, _block)
+            return self.expandvalue(value,
+                                    defaults=defaults,
+                                    ignore_missing=ignore_missing,
+                                    ignore_types=ignore_types,
+                                    _block=_block)
         else:
-            return parent.expanditem(key, defaults, ignore_missing, _block)
+            return parent.expanditem(key,
+                                     defaults=defaults,
+                                     ignore_missing=ignore_missing,
+                                     ignore_types=ignore_types,
+                                     _block=_block)
 
-    def expandvalue(self, value, defaults=(), ignore_missing=(), _block=()):
+    def expandvalue(self, value, defaults=(), ignore_missing=(),
+                    ignore_types=(), _block=()):
         """Use this :class:`Struct` to expand the given value. All
         :class:`Link` and sub-string variables will be followed in
         the process. This method is a no-op if value is a
@@ -399,6 +430,12 @@ class Struct(tokenizer.Location, DictMixin):
             then all are ignored. Otherwise raise
             :exc:`~errors.KeyMissingError`.
         :type ignore_missing: *True* or any container
+        :param ignore_types: a set of types that should be ignored
+            during expansion. Possible values in the set are:
+                'strings': Don't expand ${foo} references in strings.
+                'links': Don't follow links, leaves the Link object.
+            More values will be added in the future.
+        :type ignore_types: container of strings
         :param _block: a set of absolute paths that cannot be expanded.
             This is only for use internally to avoid circular references.
         :type block: any container
@@ -408,7 +445,10 @@ class Struct(tokenizer.Location, DictMixin):
             subkey = match.group(1)
             try:
                 subval = self.expanditem(subkey,
-                        defaults, ignore_missing, _block)
+                                         defaults=defaults,
+                                         ignore_missing=ignore_missing,
+                                         ignore_types=ignore_types,
+                                         _block=_block)
             except errors.KeyMissingError, ex:
                 if ignore_missing is True or ex.key in ignore_missing:
                     return match.group(0)
@@ -420,7 +460,10 @@ class Struct(tokenizer.Location, DictMixin):
         def expand_link(link):
             try:
                 subval = self.expanditem(link.path,
-                        defaults, ignore_missing, _block)
+                                         defaults=defaults,
+                                         ignore_missing=ignore_missing,
+                                         ignore_types=ignore_types,
+                                         _block=_block)
             except errors.KeyMissingError, ex:
                 if ignore_missing is True or ex.key in ignore_missing:
                     return link
@@ -437,7 +480,8 @@ class Struct(tokenizer.Location, DictMixin):
 
         def expand_list(list_):
             for i in xrange(len(list_)):
-                if isinstance(list_[i], basestring):
+                if ("strings" not in ignore_types and
+                        isinstance(list_[i], basestring)):
                     list_[i] = self.EXPAND.sub(expand_substr, list_[i])
                 elif isinstance(list_[i], list):
                     expand_list(list_[i])
@@ -450,11 +494,17 @@ class Struct(tokenizer.Location, DictMixin):
         if ignore_missing is False:
             ignore_missing = ()
 
+        # catch invalid values of ignore_types
+        ignore_types = frozenset(ignore_types)
+        if not ignore_types.issubset(self._expansion_types):
+            raise ValueError("Invalid ignore_types: %s" % ", ".join(
+                ignore_types.difference(self._expansion_types)))
+
         if isinstance(value, Struct):
             pass
-        elif isinstance(value, basestring):
+        elif "strings" not in ignore_types and isinstance(value, basestring):
             value = self.EXPAND.sub(expand_substr, value)
-        elif isinstance(value, Link):
+        elif "links" not in ignore_types and isinstance(value, Link):
             value = expand_link(value)
         elif isinstance(value, list):
             expand_list(value)

@@ -17,7 +17,8 @@ class StructPrototype(struct.Struct):
     parse-time rather than run-time.
     """
 
-    def __init__(self, base=(), container=None, name=None, location=None):
+    def __init__(self, base=(), container=None, name=None, location=None,
+            permissive=False):
         struct.Struct.__init__(self, base, container, name, location)
 
         # Secondary items are ones that are inherited via @extends or @file
@@ -28,6 +29,7 @@ class StructPrototype(struct.Struct):
         # _deleted is a list of items that exist in one of the parents
         # but have been removed from this Struct by ~foo tokens.
         self._deleted = []
+        self._permissive = permissive
 
     def _get(self, key):
         try:
@@ -139,9 +141,10 @@ class StructPrototype(struct.Struct):
     def _validate_doubleset(self, key):
         """Private: check that key has not been used (excluding parents)"""
 
-        if key in self._deleted or key in self._values:
-            raise errors.StructError(self,
-                    "Setting/deleting '%s' twice" % repr(key))
+        if self._permissive:
+            return
+        elif key in self._deleted or key in self._values:
+            raise errors.StructError(self, "Setting/deleting %r twice" % key)
 
 
 class Parser(object):
@@ -155,20 +158,24 @@ class Parser(object):
     :param expand: Enables/disables expansion of the parsed tree.
     :param defaults: See :meth:`struct.Struct.expanditem`
     :param ignore_missing: See :meth:`struct.Struct.expanditem`
+    :param ignore_types: See :meth:`struct.Struct.expanditem`
+    :param permissive: Disable some validation checks. Currently this
+        just includes checking for double-setting atrributes.
     """
 
-    def __init__(self, input_, path=None, encoding=None,
-            expand=True, defaults=(), ignore_missing=()):
+    def __init__(self, input_, path=None, encoding=None, expand=True,
+            defaults=(), ignore_missing=(), ignore_types=(), permissive=False):
         if path:
             self._path = os.path.abspath(path)
         else:
             self._path = None
 
         self._encoding = encoding
+        self._permissive = permissive
         self._tokenizer = tokenizer.Tokenizer(input_, self._path, encoding)
 
         # Create the root Struct and parse!
-        self._prototype = StructPrototype()
+        self._prototype = StructPrototype(permissive=permissive)
 
         while self._tokenizer.peek('~', 'PATH', 'EOF').type != 'EOF':
             self._parse_attribute(self._prototype)
@@ -176,7 +183,9 @@ class Parser(object):
         self._tokenizer.next('EOF')
         self._root = struct.Struct(self._prototype)
         if expand:
-            self._root.expand(defaults, ignore_missing)
+            self._root.expand(defaults=defaults,
+                              ignore_missing=ignore_missing,
+                              ignore_types=ignore_types)
 
     def root(self):
         """Get the root Struct.
@@ -226,7 +235,8 @@ class Parser(object):
                 parts = token.value.split('.')
                 for key in parts[:-1]:
                     if not container.get(key, False):
-                        new = StructPrototype(container=container, name=key)
+                        new = StructPrototype(container=container, name=key,
+                                              permissive=self._permissive)
                         container[key] = new
                     container = container[key]
                 token.value = parts[-1]
@@ -262,7 +272,8 @@ class Parser(object):
         token = self._tokenizer.next('{')
 
         try:
-            new = StructPrototype(container=container, name=name)
+            new = StructPrototype(container=container, name=name,
+                                  permissive=self._permissive)
             container[name] = new
         except errors.StructError, ex:
             ex.location(token)
@@ -314,7 +325,9 @@ class Parser(object):
     def _special_extends(self, container, token):
         """Handle @extends: some.struct"""
 
-        token = self._tokenizer.next('PATH')
+        token = self._tokenizer.next('=', 'PATH')
+        if token.value == '=':
+            token = self._tokenizer.next('PATH')
 
         if container.container is None:
             raise errors.StructError(self,
