@@ -2,7 +2,22 @@
 Change Log
 **********
 
-Version 0.4.16 (2010-08-23)
+Version 0.3.17 (????)
+=====================
+
+- Fix broken extending-parent check in 0.3.16
+
+- Fix compatibility with 0.2.2:
+
+  * Give control over what types of expansion is performed.
+    This is useful to turn of the expansion of references in strings.
+  * Add a "permissive" mode to the parser to ignore some errors.
+    Coil 0.2.2 didn't have the multiple set/delete test.
+  * Use these options when parsing via the legacy functions in text.py.
+  * Expose these options in coildump.
+  * Fix a number of bugs in StructNode.
+
+Version 0.3.16 (2010-08-23)
 ===========================
 
 - Add stricter validation of @extends to prevent circular references.
@@ -12,7 +27,7 @@ Version 0.4.16 (2010-08-23)
 - Allow paths to begin with a self reference "." for compatibility with
   coil versions <= 0.2.2 which seems to have allowed it.
 
-Version 0.4.15 (2010-03-22)
+Version 0.3.15 (2010-03-22)
 ===========================
 
 - Add new @map keyword to the coil parser for defining sequences of
