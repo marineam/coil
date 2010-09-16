@@ -432,8 +432,10 @@ class Struct(tokenizer.Location, DictMixin):
         :type ignore_missing: *True* or any container
         :param ignore_types: a set of types that should be ignored
             during expansion. Possible values in the set are:
-                'strings': Don't expand ${foo} references in strings.
-                'links': Don't follow links, leaves the Link object.
+
+            - 'strings': Don't expand ${foo} references in strings.
+            - 'links': Don't follow links, leaves the Link object.
+
             More values will be added in the future.
         :type ignore_types: container of strings
         :param _block: a set of absolute paths that cannot be expanded.
