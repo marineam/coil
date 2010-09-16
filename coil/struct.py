@@ -732,11 +732,15 @@ class StructNode(object):
     """For compatibility with Coil <= 0.2.2, use :class:`Struct` instead."""
 
     def __init__(self, struct, container=None):
-        # The container argument is now bogus,
-        # just make sure it matches the struct.
         assert isinstance(struct, Struct)
-        assert container is None or container == struct.container
+        assert (container is None or
+                (isinstance(container, StructNode) and
+                container._struct is struct.container))
         self._struct = struct
+        self._struct.prototype = None
+        self._struct._attrsDict = struct
+        self._struct._attrsOrder = struct.keys()
+        self._struct._deletedAttrs = {}
         self._container = struct.container
 
     def has_key(self, attr):
@@ -745,15 +749,15 @@ class StructNode(object):
     def get(self, attr, default=Struct._raise):
         val = self._struct.get(attr, default)
         if isinstance(val, Struct):
-            val = self.__class__(val)
+            val = self.__class__(val, self)
         return val
 
     def attributes(self):
         return self._struct.keys()
 
     def iteritems(self):
-        for item in self._struct.iteritems():
-            yield item
+        for key in self._struct:
+            yield key, self.get(key)
 
     def __getattr__(self, attr):
         return self.get(attr)
