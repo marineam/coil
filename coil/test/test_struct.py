@@ -136,15 +136,6 @@ class BasicTestCase(unittest.TestCase):
         self.assertEquals(s1['other'], struct.Struct({'new': "woot"}))
         self.assertEquals(s1['new'], "zomg")
 
-    def testCopyList(self):
-        s1 = struct.Struct({'list': [1, 2, [3, 4]]})
-        self.assertEquals(s1['list'], [1, 2, [3, 4]])
-        s2 = s1.copy()
-        s1['list'].append(8)
-        s1['list'][2].append(9)
-        self.assertEquals(s1['list'], [1, 2, [3, 4, 9], 8])
-        self.assertEquals(s2['list'], [1, 2, [3, 4]])
-
 class ExpansionTestCase(unittest.TestCase):
 
     def testExpand(self):
@@ -184,6 +175,20 @@ class ExpansionTestCase(unittest.TestCase):
         self.assertEquals(root.get('bar'), "omgwtfbbq${baz}")
         root.expand(ignore_missing=('baz',))
         self.assertEquals(root.get('bar'), "omgwtfbbq${baz}")
+
+    def testExpandIgnoreType(self):
+        root = struct.Struct()
+        root["foo"] = "bbq"
+        root["bar"] = "omgwtf${foo}"
+        root.expand(ignore_types=('strings',))
+        self.assertEquals(root.get('bar'), "omgwtf${foo}")
+        root["lfoo"] = struct.Link("foo")
+        root.expand(ignore_types=('links',))
+        self.assertEquals(root.get('bar'), "omgwtfbbq")
+        self.assert_(isinstance(root.get('lfoo'), struct.Link))
+        root.expand()
+        self.assert_(isinstance(root.get('lfoo'), basestring))
+        self.assertEquals(root.get('lfoo'), "bbq")
 
     def testUnexpanded(self):
         root = struct.Struct()

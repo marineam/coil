@@ -33,8 +33,8 @@ following:
   ``"""`` and ``'''`` for single and multi line strings as in Python.
 
 The key value pairs are represented by the syntax ``key: value`` similar
-to that of Python *dict* objects except there is no comma between pairs.
-White space does not mater. For example this::
+to that of Python :class:`dict` objects except there is no comma between
+pairs.  White space does not mater. For example this::
 
     is_ok: True
     description: "This is Coil"

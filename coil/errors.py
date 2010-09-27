@@ -25,38 +25,21 @@ class CoilError(Exception):
         else:
             return self.reason
 
-class NodeError(CoilError):
-    """Generic error for :class:`coil.struct.Node` objects"""
+class StructError(CoilError):
+    """Generic error for :class:`coil.struct.Struct` objects,
+    used by various Key errors.
+    """
 
-    def __init__(self, node, reason):
-        self.node_path = node.node_path
-        CoilError.__init__(self, node, reason)
+    def __init__(self, struct, reason):
+        self.structPath = struct.path()
+        CoilError.__init__(self, struct, reason)
 
     def __str__(self):
         if self.filePath or self.line:
-            return "<%s %s:%s> %s" % (self.node_path,
+            return "<%s %s:%s> %s" % (self.structPath,
                     self.filePath, self.line, self.reason)
         else:
-            return "<%s> %s" % (self.node_path, self.reason)
-
-class CircularReference(NodeError):
-    """Failed to resolve a :class:`Link` or other reference
-    due to a circular reference in the coil tree.
-    """
-
-    def __init__(self, node, link_path):
-        self.link_path = link_path
-        reason = "Circular reference to %s" % link_path
-        super(NodeError, self).__init__(node, reason)
-
-class StructError(NodeError):
-    """Generic error for :class:`coil.struct.Struct` objects"""
-
-    # compat
-    @property
-    def structPath(self):
-        return self.node_path
-
+            return "<%s> %s" % (self.structPath, self.reason)
 
 class KeyMissingError(StructError, KeyError):
     """The given key was not found"""

@@ -4,8 +4,12 @@ Expand and dump coil files to standard output
 """
 
 import sys
-from optparse import OptionParser, SUPPRESS_HELP
+from optparse import OptionParser
 import coil
+
+
+expand_types = frozenset(['strings'])
+compat_types = ('0.2.2',)
 
 
 class AttrError(Exception):
@@ -34,6 +38,24 @@ def parse_attrs(attrs, allow_path):
 
     return parsed
 
+def parse_expand(option, opt, value, parser):
+    operation = parser.values.expand.update
+    if value[0] == '-':
+        value = value[1:]
+        operation = parser.values.expand.difference_update
+    if value == "all":
+        operation(expand_types)
+    elif value in expand_types:
+        operation(set([value]))
+    else:
+        parser.error("Invalid --expand type: %s" % value)
+
+def parse_compat(option, opt, value, parser):
+    if value in ("0.2", "0.2.2"):
+        parse_expand(None, None, "-strings", parser)
+        parser.values.permissive = True
+    else:
+        parser.error("Invalid --compat: %s" % value)
 
 def parse_options():
     """Command-line option parsing"""
@@ -48,8 +70,18 @@ def parse_options():
     parser.add_option("-f", "--flatten", dest="flatten", action="store_true",
             help="Show each setting on a separate, fully-qualified line, "
                       "rather than in {} blocks")
-    parser.add_option("--profile", action="store_true", help=SUPPRESS_HELP)
-    parser.add_option("--profile-dump", help=SUPPRESS_HELP)
+    parser.add_option("--expand", default=set(expand_types),
+            action="callback", callback=parse_expand, type='str',
+            help="Control what types of expansion are performed. "
+                 "Prefix types with - to remove them. Default is "
+                 "all. Valid types are: all, %s" %
+                 ", ".join(sorted(expand_types)))
+    parser.add_option("--permissive", action="store_true",
+            help="Ignore some minor errors during parsing.")
+    parser.add_option("--compat",
+            action="callback", callback=parse_compat, type='str',
+            help="Maintain compatibility with previous coil versions. "
+                 "Valid values are: 0.2")
 
     options, args = parser.parse_args()
 
@@ -93,34 +125,25 @@ def print_flattened(parsed, prefix=None):
     else:
         print "%s: %s" % (prefix, parsed)
 
-def run(options, coil_files):
+
+def main():
+    options, coil_files = parse_options()
+    ignore_types = expand_types.difference(options.expand)
+
     for coil_file in coil_files:
         try:
-            parsed = coil.parse_file(coil_file, expand=False)
+            parsed = coil.parse_file(coil_file, expand=False,
+                    permissive=options.permissive)
             for key, val in options.attrs:
                 parsed[key] = val
-            parsed.expand(defaults=dict(options.defaults))
+            parsed.expand(
+                    defaults=dict(options.defaults),
+                    ignore_types=ignore_types)
             dump_coil(parsed, block=options.block, flatten=options.flatten)
         except Exception, ex:
             sys.stderr.write("Error in %s: %s\n" % (coil_file, ex))
             sys.exit(1)
 
-def main():
-    options, coil_files = parse_options()
-
-    if options.profile or options.profile_dump:
-        import cProfile
-        import pstats
-        profiler = cProfile.Profile()
-        profiler.runcall(run, options, coil_files)
-        if options.profile_dump:
-            profiler.dump_stats(options.profile_dump)
-        if options.profile:
-            stats = pstats.Stats(profiler, stream=sys.stderr)
-            stats.sort_stats('time', 'cumulative')
-            stats.print_stats(40)
-    else:
-        run(options, coil_files)
 
 if __name__ == '__main__':
     main()
