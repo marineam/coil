@@ -89,12 +89,12 @@ class Struct(tokenizer.Location, DictMixin):
 
     def __init__(self, base=(), container=None, name=None, location=None):
         """
-        :param base: A *dict*, *Struct*, or a sequence of (key, value)
-            tuples to initialize with. Any child *dict* or *Struct*
-            will be recursively copied as a new child *Struct*.
-        :param container: the parent *Struct* if there is one.
-        :param name: The name of this *Struct* in *container*.
-        :param location: The where this *Struct* is defined.
+        :param base: A :class:`dict`, :class:`Struct`, or a sequence of
+            (key, value) pairs to initialize with. Any child :class:`dict`
+            or :class:`Struct` will be recursively copied.
+        :param container: the parent :class:`Struct` if there is one.
+        :param name: The name of this :class:`Struct` in its container.
+        :param location: The where this :class:`Struct` is defined.
             This is normally only used by the :class:`Parser
             <coil.parser.Parser>`.
         """
@@ -162,7 +162,7 @@ class Struct(tokenizer.Location, DictMixin):
 
         :param path: key or arbitrary path to fetch.
         :param default: return this value if item is missing.
-            Note that the behavior here differs from a *dict*.
+            Note that the behavior here differs from a :class:`dict`.
             If *default* is unspecified and missing a
             :exc:`~errors.KeyMissingError` will be raised as
             __getitem__ does, not return *None*.
@@ -292,7 +292,7 @@ class Struct(tokenizer.Location, DictMixin):
         :param defaults: See :meth:`expandvalue`
         :param ignore_missing: :meth:`expandvalue`
         :param recursive: recursively expand sub-structs
-        :type recursive: *bool*
+        :type recursive: :class:`bool`
         :param ignore_types: :meth:`expandvalue`
         :param _block: See :meth:`expandvalue`
         """
@@ -424,7 +424,7 @@ class Struct(tokenizer.Location, DictMixin):
         :param value: Any value to expand, typically a
             :class:`Link` or string.
         :param defaults: default values to use if undefined.
-        :type defaults: *dict*
+        :type defaults: :class:`dict`
         :param ignore_missing: a set of keys that are ignored if
             undefined and not in defaults. If simply set to True
             then all are ignored. Otherwise raise
@@ -525,9 +525,9 @@ class Struct(tokenizer.Location, DictMixin):
         full path for each key instead.
 
         :param absolute: Enables absolute paths.
-        :type absolute: *bool*
+        :type absolute: :class:`bool`
         :param recursive: recursively search sub-structs
-        :type recursive: *bool*
+        :type recursive: :class:`bool`
 
         :return: unexpanded keys
         :rtype: set
@@ -563,7 +563,7 @@ class Struct(tokenizer.Location, DictMixin):
         return self.__class__(self)
 
     def dict(self):
-        """Recursively copy this :class:`Struct` into normal *dict* objects"""
+        """Recursively copy this :class:`Struct` into :class:`dict` objects"""
 
         new = {}
         for key, value in self.iteritems():
@@ -656,7 +656,7 @@ class Struct(tokenizer.Location, DictMixin):
     def validate_key(cls, key):
         """Check if the given key is valid.
 
-        @rtype: bool
+        :rtype: :class:`bool`
         """
         return bool(cls.KEY.match(key))
 
@@ -664,7 +664,7 @@ class Struct(tokenizer.Location, DictMixin):
     def validate_path(cls, path):
         """Check if the given path is valid.
 
-        @rtype: bool
+        :rtype: :class:`bool`
         """
         return bool(cls.PATH.match(path))
 

@@ -2,6 +2,15 @@
 Developer Guide
 ***************
 
+API Reference
+=============
+
+.. toctree::
+    :maxdepth: 2
+
+    api
+    legacy_api
+
 Overview
 ========
 
@@ -74,33 +83,89 @@ we can in the text format:
     >>> conf['sub']['y']
     Struct({'a': 2, 'b': 3, 'c': 4})
 
-Helper Functions
-================
+.. _coil-022-migration:
 
-.. autofunction:: coil.parse
+Coil 0.2.2 Migration
+====================
 
-.. autofunction:: coil.parse_file
+Coil 0.3.x differs significantly from 0.2.2. Changes include:
 
-Struct API
-==========
+   - Switch to a dict-like API for :class:`~coil.struct.Struct`. The old
+     behavior of accessing data via object attributes of
+     :class:`~coil.struct.StructNode` makes it impossible to expand the
+     API without risking new name-space conflicts with data.
+   - Deprecate :class:`~coil.struct.StructNode`, the
+     :class:`~coil.struct.Struct` class now knows about containment.
+   - Deprecate :mod:`coil.text`, the parser has changed entirely.
+   - Strict parsing of the coil text format.
+   - Expand ``"${attr}"`` links within strings.
+   - Expand all links (including those within strings) while loading the
+     coil file rather than at run time to catch errors early.
 
-.. automodule:: coil.struct
-    :members:
-    :undoc-members:
-    :inherited-members:
-    :show-inheritance:
+To ease the migration of applications from 0.2.2 to 0.3.x and beyond
+coil continues to provide the old interfaces and parameters to the new
+to behave like 0.2.2 did. When using the legacy interfaces those
+compatibility options are enabled by default. The ``coildump`` command
+also includes a ``--compat=0.2.2`` option.
 
+If you wish to maintain some compatibility with 0.2.2 but start
+transitioning to the new API here are the relevant options:
 
-Parser API
-==========
+   - Parser option ``permissive=True`` which can be passed to
+     :class:`coil.parser.Parser`, :func:`coil.parse`, and
+     :func:`coil.parse_file`. This prevents the parser from raising
+     errors when parsing a block that sets/deletes the same attribute
+     more than once.
 
-.. automodule:: coil.parser
-    :members:
-    :show-inheritance:
+   - Expansion option ``ignore_types=['strings']`` which can be passed to
+     :meth:`Struct.expand <coil.struct.Struct.expand>` and the
+     :class:`~coil.parser.Parser` class when ``expand=True`` is used
+     (the default). This prevents coil from expanding ``"${attr}"``
+     style links within strings.
 
-Errors
-======
+   - The expansion option ``ignore_missing=True`` may also be useful as
+     an alternative to ``ignore_types=['strings']``. This allows coil to
+     expand links when possible and not raise an error when it cannot.
 
-.. automodule:: coil.errors
-    :members:
-    :show-inheritance:
+So a migration could be handled in several independent steps:
+
+    1. Upgrade coil library from 0.2.2 to 0.3.17 or later. Things should
+       just work as-is since the application will be using the legacy
+       APIs (:mod:`coil.text` and :class:`~coil.struct.StructNode`).
+       Note that versions of 0.3.x prior to 0.3.17 do not provide the
+       compatibility options discussed above and had a number of bugs in
+       :class:`~coil.struct.StructNode`.
+
+    2. Switch to the new parser API (:class:`~coil.parser.Parser`,
+       :func:`coil.parse`, and :func:`coil.parse_file`) using
+       ``permissive=True`` and ``ignore_types=['strings']``.
+
+    3. Try removing the ``permissive`` option and fix any errors now
+       reported in existing coil files.
+
+    4. If the application previously handled ``"${attr}"`` links itself
+       but in a way that should be compatible with 0.3.x remove
+       ``ignore_missing`` and test existing coil files to confirm
+       compatibility.
+
+       If the application's use of ``"${attr}"`` links is not quite
+       compatible with 0.3.x then the following may be useful:
+
+       .. doctest::
+
+          >>> import coil
+
+          First: ignore strings so all other errors can be found.
+          >>> conf = coil.parse('a: 1 b: "${a} ${other}"',
+          ...                   ignore_types=['strings'])
+
+          Second: re-run expansion to handle strings bug ignore errors.
+          >>> conf.expand(ignore_missing=True)
+
+          Optionally document things coil didn't handle:
+          >>> conf.unexpanded()
+          set(['other'])
+
+          Pass the config along to the old code to fill in the rest:
+          >>> node = coil.struct.StructNode(conf)
+          >>> # do something with node

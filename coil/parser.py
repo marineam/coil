@@ -151,14 +151,15 @@ class Parser(object):
     """The standard coil parser.
 
     :param input_: An iterator over lines of input.
-        Typically a C{file} object or list of strings.
+        Typically a :class:`file` object or list of strings.
     :param path: Path to input file, used for errors and @file imports.
-    :param encoding: Read strings using the given encoding. All
-        string values will be `unicode` objects rather than `str`.
+    :param encoding: Read strings using the given encoding.
+        All string values will be :class:`unicode` objects rather than
+        :class:`str`.
     :param expand: Enables/disables expansion of the parsed tree.
-    :param defaults: See :meth:`struct.Struct.expanditem`
-    :param ignore_missing: See :meth:`struct.Struct.expanditem`
-    :param ignore_types: See :meth:`struct.Struct.expanditem`
+    :param defaults: See :meth:`Struct.expanditem <coil.struct.Struct.expanditem>`
+    :param ignore_missing: See :meth:`Struct.expanditem <coil.struct.Struct.expanditem>`
+    :param ignore_types: See :meth:`Struct.expanditem <coil.struct.Struct.expanditem>`
     :param permissive: Disable some validation checks. Currently this
         just includes checking for double-setting atrributes.
     """
