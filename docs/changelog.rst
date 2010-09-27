@@ -2,10 +2,10 @@
 Change Log
 **********
 
-Version 0.3.17 (????)
-=====================
+Version 0.3.17 (2010-09-27)
+===========================
 
-- Fix broken extending-parent check in 0.3.16
+- Fix broken extending-parent check added in 0.3.16
 
 - Fix compatibility with 0.2.2:
 
@@ -16,6 +16,8 @@ Version 0.3.17 (????)
   * Use these options when parsing via the legacy functions in text.py.
   * Expose these options in coildump.
   * Fix a number of bugs in StructNode.
+
+- Various documentation updates/fixes.
 
 Version 0.3.16 (2010-08-23)
 ===========================
@@ -62,7 +64,7 @@ Version 0.3.11 (2009-09-23)
 Version 0.3.8 (2009-08-20)
 ==========================
 
-- Fix expansion of "${@root.foo}" references in imported files.
+- Fix expansion of ``"${@root.foo}"`` references in imported files.
 
 - Extra version bump because setting the version previously to 0.3.7.pre
   screws up depending on the above fix by testing the version.
@@ -197,7 +199,7 @@ Changes since 0.2.2:
 
 - Struct objects may be modified at run time just like a normal dict.
 
-- Struct's get and set methods may reference any relative or absolute
+- Structs get and set methods may reference any relative or absolute
   path in the tree.
 
 - More exception types with clearer error messages to ease
