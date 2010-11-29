@@ -5,7 +5,7 @@ Expand and dump coil files to standard output
 
 import sys
 from optparse import OptionParser
-import coil
+from coil.parser import Parser
 
 
 expand_types = frozenset(['strings'])
@@ -96,7 +96,8 @@ def parse_options():
         parser.error("Invalid --attribute: %s" % ex)
 
     if not args:
-        parser.error("At least one coil file is required!")
+        # Default to stdin
+        args = ["-"]
 
     return options, args
 
@@ -107,8 +108,15 @@ def main():
 
     for coil_file in coil_files:
         try:
-            parsed = coil.parse_file(coil_file, expand=False,
-                    permissive=options.permissive)
+            if coil_file == "-":
+                coil_fd = sys.stdin
+            else:
+                coil_fd = open(coil_file)
+
+            parser = Parser(coil_fd, coil_file,
+                    expand=False, permissive=options.permissive)
+            parsed = parser.root()
+            coil_fd.close()
 
             for key, val in options.attrs:
                 parsed[key] = val
