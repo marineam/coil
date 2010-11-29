@@ -276,3 +276,11 @@ class StringTestCase(unittest.TestCase):
     def testNestedList(self):
         root = struct.Struct({'x': ['a', ['b', 'c']]})
         self.assertEquals(str(root), 'x: ["a" ["b" "c"]]')
+
+    def testNormal(self):
+        root = struct.Struct({'x': {'y': None}})
+        self.assertEquals(str(root), 'x: {\n    y: None\n}')
+
+    def testFlat(self):
+        root = struct.Struct({'x': {'y': None}})
+        self.assertEquals(root.flatten(), 'x.y: None')

@@ -607,6 +607,25 @@ class Struct(tokenizer.Location, DictMixin):
         else:
             return self._path
 
+    def _stritem(self, item):
+        # FIXME: unicode breaks this, we need to handle encodings
+        # explicitly in Structs rather than just in Parser
+        if isinstance(item, basestring):
+            # Should we use """ for multi-line strings?
+            item = item.replace('\\', '\\\\')
+            item = item.replace('\n', '\\n')
+            item = item.replace('\r', '\\r')
+            item = item.replace('"', '\\"')
+            return '"%s"' % item
+        elif isinstance(item, (list, tuple)):
+            return "[%s]" % " ".join([self._stritem(x) for x in item])
+        elif (isinstance(item, (int, long, float)) or
+                item in (True, False, None)):
+            return str(item)
+        else:
+            raise errors.StructError(self,
+                "%s cannot be represented in the coil text format" % item)
+
     def string(self, strict=True, prefix=''):
         """Convert this :class:`Struct` tree to the coil text format.
 
@@ -621,41 +640,58 @@ class Struct(tokenizer.Location, DictMixin):
         :type prefix: string
         """
 
-        def stritem(item):
-            # FIXME: unicode breaks this, we need to handle encodings
-            # explicitly in Structs rather than just in Parser
-            if isinstance(item, basestring):
-                # Should we use """ for multi-line strings?
-                item = item.replace('\\', '\\\\')
-                item = item.replace('\n', '\\n')
-                item = item.replace('\r', '\\r')
-                item = item.replace('"', '\\"')
-                return '"%s"' % item
-            elif isinstance(item, (list, tuple)):
-                return "[%s]" % " ".join([stritem(x) for x in item])
-            elif (isinstance(item, (int, long, float)) or
-                    item in (True, False, None)):
-                return str(item)
-            else:
-                raise errors.StructError(self,
-                    "%s cannot be represented in the coil text format" % item)
-
         result = ""
 
         for key, val in self.iteritems():
             # This should never happen, but might as well be safe
             assert self.KEY.match(key)
 
-            result = "%s%s%s: " % (result, prefix, key)
-
             if isinstance(val, Struct):
                 child = val.string(strict, "%s    " % prefix)
                 if child:
-                    result = "%s{\n%s\n%s}\n" % (result, child, prefix)
+                    result = "%s%s%s: {\n%s\n%s}\n" % (result,
+                            prefix, key, child, prefix)
                 else:
-                    result += "{}\n"
+                    result = "%s%s%s: {}\n" % (result, prefix, key)
             else:
-                result = "%s%s\n" % (result, stritem(val))
+                result = "%s%s%s: %s\n" % (result, prefix,
+                        key, self._stritem(val))
+
+        return result.rstrip()
+
+    def flatten(self, strict=True, prefix='', path=''):
+        """Alternate version of :meth:`Struct.string` that generates a
+        flat key: value list rather than a Struct tree. This is equally
+        as valid as the standard format and sometimes is easier to read.
+
+        :param strict: If True then fail if the tree contains any
+            values that cannot be represented in the coil text format.
+        :type strict: *bool*
+        :param prefix: Start each line with the given prefix.
+        :type prefix: string
+        :param path: path to prefix each key with. Used for recursion.
+        :type: string
+        """
+
+        result = ""
+
+        for key, val in self.iteritems():
+            assert self.KEY.match(key)
+
+            if path:
+                child_path = "%s.%s" % (path, key)
+            else:
+                child_path = key
+
+            if isinstance(val, Struct):
+                child = val.flatten(strict, prefix, child_path)
+                if child:
+                    result = "%s%s" % (result, child)
+                else:
+                    result = "%s%s%s\n: {}\n" % (result, prefix, child_path)
+            else:
+                result = "%s%s%s: %s\n" % (result, prefix,
+                        child_path, self._stritem(val))
 
         return result.rstrip()
 

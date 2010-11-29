@@ -101,31 +101,6 @@ def parse_options():
     return options, args
 
 
-def dump_coil(parsed, block=None, flatten=False):
-    """Dump the coil as a string"""
-    if block:
-        parsed = parsed[block]
-
-    if flatten:
-        print_flattened(parsed)
-    else:
-        print parsed
-
-
-def print_flattened(parsed, prefix=None):
-    """Display the coil in lines of fully-qualified keypaths"""
-    if isinstance(parsed, coil.struct.Struct):
-        for key in parsed:
-            # include the prefix if we have one
-            if prefix:
-                path = "%s.%s" % (prefix, key)
-            else:
-                path = key
-            print_flattened(parsed[key], path)
-    else:
-        print "%s: %s" % (prefix, parsed)
-
-
 def main():
     options, coil_files = parse_options()
     ignore_types = expand_types.difference(options.expand)
@@ -134,12 +109,21 @@ def main():
         try:
             parsed = coil.parse_file(coil_file, expand=False,
                     permissive=options.permissive)
+
             for key, val in options.attrs:
                 parsed[key] = val
+
             parsed.expand(
                     defaults=dict(options.defaults),
                     ignore_types=ignore_types)
-            dump_coil(parsed, block=options.block, flatten=options.flatten)
+
+            if options.block:
+                parsed = parsed[options.block]
+
+            if options.flatten:
+                print parsed.flatten()
+            else:
+                print parsed.string()
         except Exception, ex:
             sys.stderr.write("Error in %s: %s\n" % (coil_file, ex))
             sys.exit(1)
