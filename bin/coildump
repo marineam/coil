@@ -80,25 +80,44 @@ def dump_coil(parsed, block=None, flatten=False):
         print parsed
 
 
-def print_flattened(parsed, prefix=None):
+def print_flattened(parsed, from_key=None):
     """Display the coil in lines of fully-qualified keypaths"""
     if isinstance(parsed, coil.struct.Struct):
         for key in parsed:
-            # include the prefix if we have one
-            if prefix:
-                path = "%s.%s" % (prefix, key)
+            # flatten by adding key to the from_key
+            if from_key:
+                path = "%s.%s" % (from_key, key)
             else:
                 path = key
             print_flattened(parsed[key], path)
+
+    # lists should be printed without being comma-separated
+    elif isinstance(parsed, (list, tuple)):
+        coil_list = " ".join([repr(s) for s in parsed])
+        print "%s: [%s]" % (from_key, coil_list)
+
+    # leaf-nodes are either strings, which should be repr'd, or just just
+    # stringified (eg: numbers, etc)
     else:
-        print "%s: %s" % (prefix, parsed)
+        if isinstance(parsed, str):
+            # make sure strings are printed as reprs (with quotes)
+            print "%s: %r" % (from_key, parsed)
+        else:
+            print "%s: %s" % (from_key, parsed)
+
 
 def run(options, coil_files):
     for coil_file in coil_files:
         try:
-            parsed = coil.parse_file(coil_file, expand=False)
+            if coil_file == "-":
+                coil_text = sys.stdin.read()
+                parsed = coil.parse(coil_text, expand=False)
+            else:
+                parsed = coil.parse_file(coil_file, expand=False)
+
             for key, val in options.attrs:
                 parsed[key] = val
+
             parsed.expand(defaults=dict(options.defaults))
             dump_coil(parsed, block=options.block, flatten=options.flatten)
         except Exception, ex:
