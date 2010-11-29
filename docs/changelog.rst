@@ -2,36 +2,35 @@
 Change Log
 **********
 
-Version 0.4.0 (????)
-====================
+Version 0.3.18 (2010-11-29)
+===========================
 
-Incompatible Changes
---------------------
+- Add new list-style Struct.sort() method.
 
-- :class:`Struct <coil.struct.Struct>` is now based on Python 2.7's
-  OrderedDict class rather than DictMixin. For Python versions <= 2.6
-  a compatible replacement is used which is based on dict and DictMixin.
+- Move coildump's flatten code into a new Struct.flatten() method.
+  This fixes some issues with coildump -f printing invalid coil.
 
-  For most usage this should be a transparent change but now
-  issubclass(Struct, DictMixin) may or may not be True. Also, the
-  equality operator now considers the ordering of attributes. From
-  Python 2.7's documentation on the subject:
+- Add support to coildump for reading from stdin.
 
-    Equality tests between OrderedDict objects are order-sensitive and
-    are implemented as list(od1.items())==list(od2.items()). Equality
-    tests between OrderedDict objects and other Mapping objects are
-    order-insensitive like regular dictionaries. This allows OrderedDict
-    objects to be substituted anywhere a regular dictionary is used.
+- Properly close input file in coil.parse_file().
+  (I could have sworn that this was fixed a long time ago...)
 
-  I actually had not realized or forgotten that coil 0.3.x was ignoring
-  the order so I was baffled for some time as to why some 0.3.x test
-  cases ever managed to pass in the first place.
+Version 0.3.17 (2010-09-27)
+===========================
 
-- All list objects in coil trees are now instances of
-  :class:`List <coil.struct.List` which is just a list that knows how to
-  recursively copy itself. Since it is still a subclass of the built in
-  list class this shouldn't break any (sane) existing code although more
-  features may be added in the future.
+- Fix broken extending-parent check added in 0.3.16
+
+- Fix compatibility with 0.2.2:
+
+  * Give control over what types of expansion is performed.
+    This is useful to turn of the expansion of references in strings.
+  * Add a "permissive" mode to the parser to ignore some errors.
+    Coil 0.2.2 didn't have the multiple set/delete test.
+  * Use these options when parsing via the legacy functions in text.py.
+  * Expose these options in coildump.
+  * Fix a number of bugs in StructNode.
+
+- Various documentation updates/fixes.
 
 Version 0.3.16 (2010-08-23)
 ===========================
@@ -78,7 +77,7 @@ Version 0.3.11 (2009-09-23)
 Version 0.3.8 (2009-08-20)
 ==========================
 
-- Fix expansion of "${@root.foo}" references in imported files.
+- Fix expansion of ``"${@root.foo}"`` references in imported files.
 
 - Extra version bump because setting the version previously to 0.3.7.pre
   screws up depending on the above fix by testing the version.
@@ -213,7 +212,7 @@ Changes since 0.2.2:
 
 - Struct objects may be modified at run time just like a normal dict.
 
-- Struct's get and set methods may reference any relative or absolute
+- Structs get and set methods may reference any relative or absolute
   path in the tree.
 
 - More exception types with clearer error messages to ease

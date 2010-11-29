@@ -17,7 +17,10 @@ class StructPrototype(struct.Struct):
     parse-time rather than run-time.
     """
 
-    def __init__(self, base=(), container=None, name=None, location=None):
+    def __init__(self, base=(), container=None, name=None, location=None,
+            permissive=False):
+        struct.Struct.__init__(self, base, container, name, location)
+
         # Secondary items are ones that are inherited via @extends or @file
         # They must be tracked separately so we can raise errors on
         # double adds and deletes in the primary values.
@@ -26,49 +29,50 @@ class StructPrototype(struct.Struct):
         # _deleted is a list of items that exist in one of the parents
         # but have been removed from this Struct by ~foo tokens.
         self._deleted = []
-
-        self._cls_struct = StructPrototype
-        super(StructPrototype, self).__init__(base, container, name, location)
+        self._permissive = permissive
 
     def _get(self, key):
         try:
-            return super(StructPrototype, self)._get(key)
+            return self._values[key]
         except KeyError:
             return self._secondary_values[key]
 
     def _set(self, key, value):
         self._validate_doubleset(key)
 
-        super(StructPrototype, self)._set(key, value)
+        self._values[key] = value
 
         if key in self._secondary_values:
             del self._secondary_values[key]
+        elif key not in self._order:
+            self._order.append(key)
 
     def _del(self, key):
         self._validate_doubleset(key)
 
-        try:
-            super(StructPrototype, self)._del(key)
-        except KeyError:
+        if key in self._values:
+            del self._values[key]
+            if key in self._order:
+                self._order.remove(key)
+            else:
+                self._secondary_order.remove(key)
+        elif key in self._secondary_values:
             del self._secondary_values[key]
             self._secondary_order.remove(key)
         else:
             raise KeyError
 
     def __contains__(self, key):
-        return (super(StructPrototype, self).__contains__(key)
-                or key in self._secondary_values)
+        return key in self._values or key in self._secondary_values
 
     def __iter__(self):
         for key in self._secondary_order:
             yield key
-        for key in super(StructPrototype, self).__iter__():
-            if key not in self._secondary_order:
-                yield key
+        for key in self._order:
+            yield key
 
     def __len__(self):
-        return (super(StructPrototype, self).__len__()
-                + len(self._secondary_values))
+        return len(self._values) + len(self._secondary_values)
 
     def extends(self, base, relative=False):
         """Add a struct as another parent.
@@ -77,6 +81,29 @@ class StructPrototype(struct.Struct):
         :param relative: Convert @root links to relative links.
             Used when extending a Struct from another file.
         """
+
+        def relativeize(path):
+            if not path.startswith("@root"):
+                return path
+            else:
+                new = ""
+                container = base
+                while container.container:
+                    container = container.container
+                    new += "."
+                new += path[5:]
+                return new
+
+        def relativestr(match):
+            return "${%s}" % relativeize(match.group(1))
+
+        def relativelist(old):
+            new = []
+            for item in old:
+                if isinstance(item, basestring):
+                    item = struct.Struct.EXPAND.sub(relativestr, item)
+                new.append(item)
+            return new
 
         if base is self:
             raise errors.StructError(self,
@@ -89,22 +116,24 @@ class StructPrototype(struct.Struct):
         if base._map is not None and self._map is None:
             self._map = list(base._map)
 
-        for key in base:
+        for key, value in base.iteritems():
             if key in self or key in self._deleted:
                 continue
-
-            # Use the raw value, don't unwrap
-            value = base._get(key)
 
             # Copy child Structs so that they can be edited independently
             if isinstance(value, struct.Struct):
                 new = self.__class__(container=self, name=key)
                 new.extends(value, relative)
                 value = new
-            elif isinstance(value, struct.Node):
-                value = value.copy(self, key)
-            else:
-                raise Exception("Unexpected type %s" % type(value))
+
+            # Convert absolute to relative links if required
+            if relative:
+                if isinstance(value, struct.Link):
+                    value.path = relativeize(value.path)
+                elif isinstance(value, basestring):
+                    value = struct.Struct.EXPAND.sub(relativestr, value)
+                elif isinstance(value, list):
+                    value = relativelist(value)
 
             self._secondary_values[key] = value
             self._secondary_order.append(key)
@@ -112,37 +141,42 @@ class StructPrototype(struct.Struct):
     def _validate_doubleset(self, key):
         """Private: check that key has not been used (excluding parents)"""
 
-        if (super(StructPrototype, self).__contains__(key)
-                or key in self._deleted):
-            raise errors.StructError(self,
-                    "Setting/deleting '%s' twice" % repr(key))
+        if self._permissive:
+            return
+        elif key in self._deleted or key in self._values:
+            raise errors.StructError(self, "Setting/deleting %r twice" % key)
 
 
 class Parser(object):
     """The standard coil parser.
 
     :param input_: An iterator over lines of input.
-        Typically a C{file} object or list of strings.
+        Typically a :class:`file` object or list of strings.
     :param path: Path to input file, used for errors and @file imports.
-    :param encoding: Read strings using the given encoding. All
-        string values will be `unicode` objects rather than `str`.
+    :param encoding: Read strings using the given encoding.
+        All string values will be :class:`unicode` objects rather than
+        :class:`str`.
     :param expand: Enables/disables expansion of the parsed tree.
-    :param defaults: See :meth:`struct.Struct.expanditem`
-    :param ignore_missing: See :meth:`struct.Struct.expanditem`
+    :param defaults: See :meth:`Struct.expanditem <coil.struct.Struct.expanditem>`
+    :param ignore_missing: See :meth:`Struct.expanditem <coil.struct.Struct.expanditem>`
+    :param ignore_types: See :meth:`Struct.expanditem <coil.struct.Struct.expanditem>`
+    :param permissive: Disable some validation checks. Currently this
+        just includes checking for double-setting atrributes.
     """
 
-    def __init__(self, input_, path=None, encoding=None,
-            expand=True, defaults=(), ignore_missing=()):
+    def __init__(self, input_, path=None, encoding=None, expand=True,
+            defaults=(), ignore_missing=(), ignore_types=(), permissive=False):
         if path:
             self._path = os.path.abspath(path)
         else:
             self._path = None
 
         self._encoding = encoding
+        self._permissive = permissive
         self._tokenizer = tokenizer.Tokenizer(input_, self._path, encoding)
 
         # Create the root Struct and parse!
-        self._prototype = StructPrototype()
+        self._prototype = StructPrototype(permissive=permissive)
 
         while self._tokenizer.peek('~', 'PATH', 'EOF').type != 'EOF':
             self._parse_attribute(self._prototype)
@@ -150,7 +184,9 @@ class Parser(object):
         self._tokenizer.next('EOF')
         self._root = struct.Struct(self._prototype)
         if expand:
-            self._root.expand(defaults, ignore_missing)
+            self._root.expand(defaults=defaults,
+                              ignore_missing=ignore_missing,
+                              ignore_types=ignore_types)
 
     def root(self):
         """Get the root Struct.
@@ -200,7 +236,8 @@ class Parser(object):
                 parts = token.value.split('.')
                 for key in parts[:-1]:
                     if not container.get(key, False):
-                        new = StructPrototype(container=container, name=key)
+                        new = StructPrototype(container=container, name=key,
+                                              permissive=self._permissive)
                         container[key] = new
                     container = container[key]
                 token.value = parts[-1]
@@ -236,7 +273,8 @@ class Parser(object):
         token = self._tokenizer.next('{')
 
         try:
-            new = StructPrototype(container=container, name=name)
+            new = StructPrototype(container=container, name=name,
+                                  permissive=self._permissive)
             container[name] = new
         except errors.StructError, ex:
             ex.location(token)
@@ -250,7 +288,7 @@ class Parser(object):
     def _parse_list(self, container, name):
         """[ number or string or list ... ]"""
 
-        new = struct.List((), container, name)
+        new = list()
         container[name] = new
         self._parse_list_values(new)
 
@@ -262,7 +300,7 @@ class Parser(object):
 
         while token.type != ']':
             if token.type == '[':
-                new = struct.List((), container, '+list+')
+                new = list()
                 container.append(new)
                 self._parse_list_values(new)
             else:
@@ -276,7 +314,7 @@ class Parser(object):
         """some.path"""
 
         token = self._tokenizer.next('PATH')
-        link = struct.Link(token.value, container, name, token)
+        link = struct.Link(token.value)
         container.set(name, link, location=token)
 
     def _parse_plain(self, container, name):
@@ -288,7 +326,9 @@ class Parser(object):
     def _special_extends(self, container, token):
         """Handle @extends: some.struct"""
 
-        token = self._tokenizer.next('PATH')
+        token = self._tokenizer.next('=', 'PATH')
+        if token.value == '=':
+            token = self._tokenizer.next('PATH')
 
         if container.container is None:
             raise errors.StructError(self,
@@ -316,7 +356,7 @@ class Parser(object):
 
         _container = container
         while _container is not None:
-            if _container == parent:
+            if _container is parent:
                 raise errors.StructError(container,
                       "@extends target cannot be parents of container")
             _container = _container.container

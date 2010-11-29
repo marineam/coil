@@ -5,8 +5,3 @@ sub: {@file: "example.coil"
      }
 
 sub2: {@file: "example.coil"}
-
-sub3: {
-    @extends: ..sub
-    x: "zoink"
-}

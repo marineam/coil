@@ -14,7 +14,7 @@
 # All configuration values have a default; values that are commented out
 # serve to show the default.
 
-import sys, os
+import sys, os, time
 
 # If your extensions (or modules documented by autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -28,7 +28,8 @@ from coil import __version__ as VERSION
 
 # Add any Sphinx extension module names here, as strings. They can be extensions
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
-extensions = ['sphinx.ext.autodoc', 'sphinx.ext.doctest']
+extensions = ['sphinx.ext.autodoc', 'sphinx.ext.doctest',
+              'sphinx.ext.intersphinx']
 
 # Add any paths that contain templates here, relative to this directory.
 #templates_path = ['.templates']
@@ -44,7 +45,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'Coil'
-copyright = u'2009, Michael Marineau'
+copyright = u'2009-%s, Michael Marineau' % time.strftime("%Y")
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -93,8 +94,11 @@ pygments_style = 'sphinx'
 # -------------------
 
 autoclass_content = 'both'
-autodoc_member_order = 'groupwise' # bump this to 'bysource' in 1.0
+autodoc_member_order = 'bysource'
 
+# Options for intersphinx
+# -----------------------
+intersphinx_mapping = {'python': ('http://docs.python.org/', None)}
 
 # Options for HTML output
 # -----------------------
@@ -141,7 +145,7 @@ html_style = 'default.css'
 #html_additional_pages = {}
 
 # If false, no module index is generated.
-#html_use_modindex = True
+html_use_modindex = False
 
 # If false, no index is generated.
 #html_use_index = True
