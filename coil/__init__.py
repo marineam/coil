@@ -21,8 +21,10 @@ def parse_file(file_name, **kwargs):
     :return: The root object.
     :rtype: :class:`Struct <coil.struct.Struct>`
     """
-    coil = open(file_name)
-    return Parser(coil, file_name, **kwargs).root()
+    file_fd = open(file_name)
+    parser = Parser(file_fd, file_name, **kwargs)
+    file_fd.close()
+    return parser.root()
 
 def parse(string, **kwargs):
     """Parse a coil string.
