@@ -247,6 +247,31 @@ class ExpansionTestCase(unittest.TestCase):
         self.assertEquals(a.get("foo"), [ "omgwtfa" ])
         self.assertEquals(b.get("foo"), [ "omgwtfb" ])
 
+    def testSortKeys(self):
+        ukeys = ['z','r','a','c']
+        skeys = sorted(ukeys)
+        a = struct.Struct([(k,None) for k in ukeys])
+        self.assertEquals(a.keys(), ukeys)
+        self.assertNotEqual(a.keys(), skeys)
+        a.sort()
+        self.assertEquals(a.keys(), skeys)
+        self.assertNotEqual(a.keys(), ukeys)
+
+    def testSortValues(self):
+        def keycmp(a,b):
+            return cmp(a[1], b[1])
+        uvalues = ['z','r','a','c']
+        svalues = sorted(uvalues)
+        a = struct.Struct()
+        for i,v in enumerate(uvalues):
+            a["_%s" % i] = v
+        self.assertEquals(a.values(), uvalues)
+        self.assertNotEqual(a.values(), svalues)
+        a.sort(cmp=keycmp)
+        self.assertEquals(a.values(), svalues)
+        self.assertNotEqual(a.values(), uvalues)
+
+
 class StringTestCase(unittest.TestCase):
     def testNestedList(self):
         root = struct.Struct({'x': ['a', ['b', 'c']]})

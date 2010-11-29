@@ -2,6 +2,11 @@
 Change Log
 **********
 
+Version 0.3.18 (????-??-??)
+===========================
+
+- Add new list-style Struct.sort() method.
+
 Version 0.3.17 (2010-09-27)
 ===========================
 

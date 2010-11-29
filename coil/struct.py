@@ -280,6 +280,21 @@ class Struct(tokenizer.Location, DictMixin):
         for key in self:
             yield key, self[key]
 
+    def sort(self, cmp=None, reverse=False):
+        """Sort in place. By default items are sorted by key.
+
+        Alternate sort methods may be provided by giving a custom
+        cmp method. The arguments to cmp will be (key, value) pairs.
+        """
+
+        def cmp_wrap(a, b):
+            return cmp((a, self[a]), (b, self[b]))
+
+        if not cmp:
+            self._order.sort(reverse=reverse)
+        else:
+            self._order.sort(cmp=cmp_wrap, reverse=reverse)
+
     def expand(self, defaults=(), ignore_missing=(), recursive=True,
                ignore_types=(), _block=()):
         """Expand all :class:`Link` and sub-string variables in this
