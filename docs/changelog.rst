@@ -2,10 +2,18 @@
 Change Log
 **********
 
-Version 0.3.18 (????-??-??)
+Version 0.3.18 (2010-11-29)
 ===========================
 
 - Add new list-style Struct.sort() method.
+
+- Move coildump's flatten code into a new Struct.flatten() method.
+  This fixes some issues with coildump -f printing invalid coil.
+
+- Add support to coildump for reading from stdin.
+
+- Properly close input file in coil.parse_file().
+  (I could have sworn that this was fixed a long time ago...)
 
 Version 0.3.17 (2010-09-27)
 ===========================
