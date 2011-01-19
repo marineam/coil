@@ -686,9 +686,9 @@ class Struct(tokenizer.Location, DictMixin):
             if isinstance(val, Struct):
                 child = val.flatten(strict, prefix, child_path)
                 if child:
-                    result = "%s%s" % (result, child)
+                    result = "%s%s\n" % (result, child)
                 else:
-                    result = "%s%s%s\n: {}\n" % (result, prefix, child_path)
+                    result = "%s%s%s: {}\n" % (result, prefix, child_path)
             else:
                 result = "%s%s%s: %s\n" % (result, prefix,
                         child_path, self._stritem(val))
