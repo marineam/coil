@@ -136,15 +136,6 @@ class BasicTestCase(unittest.TestCase):
         self.assertEquals(s1['other'], struct.Struct({'new': "woot"}))
         self.assertEquals(s1['new'], "zomg")
 
-    def testCopyList(self):
-        s1 = struct.Struct({'list': [1, 2, [3, 4]]})
-        self.assertEquals(s1['list'], [1, 2, [3, 4]])
-        s2 = s1.copy()
-        s1['list'].append(8)
-        s1['list'][2].append(9)
-        self.assertEquals(s1['list'], [1, 2, [3, 4, 9], 8])
-        self.assertEquals(s2['list'], [1, 2, [3, 4]])
-
 class ExpansionTestCase(unittest.TestCase):
 
     def testExpand(self):
@@ -184,6 +175,20 @@ class ExpansionTestCase(unittest.TestCase):
         self.assertEquals(root.get('bar'), "omgwtfbbq${baz}")
         root.expand(ignore_missing=('baz',))
         self.assertEquals(root.get('bar'), "omgwtfbbq${baz}")
+
+    def testExpandIgnoreType(self):
+        root = struct.Struct()
+        root["foo"] = "bbq"
+        root["bar"] = "omgwtf${foo}"
+        root.expand(ignore_types=('strings',))
+        self.assertEquals(root.get('bar'), "omgwtf${foo}")
+        root["lfoo"] = struct.Link("foo")
+        root.expand(ignore_types=('links',))
+        self.assertEquals(root.get('bar'), "omgwtfbbq")
+        self.assert_(isinstance(root.get('lfoo'), struct.Link))
+        root.expand()
+        self.assert_(isinstance(root.get('lfoo'), basestring))
+        self.assertEquals(root.get('lfoo'), "bbq")
 
     def testUnexpanded(self):
         root = struct.Struct()
@@ -242,7 +247,40 @@ class ExpansionTestCase(unittest.TestCase):
         self.assertEquals(a.get("foo"), [ "omgwtfa" ])
         self.assertEquals(b.get("foo"), [ "omgwtfb" ])
 
+    def testSortKeys(self):
+        ukeys = ['z','r','a','c']
+        skeys = sorted(ukeys)
+        a = struct.Struct([(k,None) for k in ukeys])
+        self.assertEquals(a.keys(), ukeys)
+        self.assertNotEqual(a.keys(), skeys)
+        a.sort()
+        self.assertEquals(a.keys(), skeys)
+        self.assertNotEqual(a.keys(), ukeys)
+
+    def testSortValues(self):
+        def keycmp(a,b):
+            return cmp(a[1], b[1])
+        uvalues = ['z','r','a','c']
+        svalues = sorted(uvalues)
+        a = struct.Struct()
+        for i,v in enumerate(uvalues):
+            a["_%s" % i] = v
+        self.assertEquals(a.values(), uvalues)
+        self.assertNotEqual(a.values(), svalues)
+        a.sort(cmp=keycmp)
+        self.assertEquals(a.values(), svalues)
+        self.assertNotEqual(a.values(), uvalues)
+
+
 class StringTestCase(unittest.TestCase):
     def testNestedList(self):
         root = struct.Struct({'x': ['a', ['b', 'c']]})
         self.assertEquals(str(root), 'x: ["a" ["b" "c"]]')
+
+    def testNormal(self):
+        root = struct.Struct({'x': {'y': None}})
+        self.assertEquals(str(root), 'x: {\n    y: None\n}')
+
+    def testFlat(self):
+        root = struct.Struct({'x': {'y': None}})
+        self.assertEquals(root.flatten(), 'x.y: None')

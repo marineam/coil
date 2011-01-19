@@ -6,7 +6,7 @@ Contents
 ========
 
 .. toctree::
-    :maxdepth: 2
+    :maxdepth: 3
 
     introduction
     user_guide
@@ -17,6 +17,5 @@ Indices and tables
 ==================
 
 * :ref:`genindex`
-* :ref:`modindex`
 * :ref:`search`
 
