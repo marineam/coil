@@ -2,6 +2,11 @@
 Change Log
 **********
 
+Version 0.3.19 (2010-12-02)
+===========================
+
+- Fix regression in coildump -f introduced with Struct.flatten()
+
 Version 0.3.18 (2010-11-29)
 ===========================
 
