@@ -102,6 +102,16 @@ class StructPrototype(struct.Struct):
             for item in old:
                 if isinstance(item, basestring):
                     item = struct.Struct.EXPAND.sub(relativestr, item)
+                elif isinstance(item, list):
+                    item = relativelist(item)
+                new.append(item)
+            return new
+
+        def copylist(old):
+            new = []
+            for item in old:
+                if isinstance(item, list):
+                    item = copylist(item)
                 new.append(item)
             return new
 
@@ -134,6 +144,9 @@ class StructPrototype(struct.Struct):
                     value = struct.Struct.EXPAND.sub(relativestr, value)
                 elif isinstance(value, list):
                     value = relativelist(value)
+            # Otherwise we still need to recursively copy lists
+            elif isinstance(value, list):
+                value = copylist(value)
 
             self._secondary_values[key] = value
             self._secondary_order.append(key)

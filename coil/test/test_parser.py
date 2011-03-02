@@ -141,6 +141,7 @@ class ExtendsTestCase(unittest.TestCase):
                 a: "a"
                 b: "b"
                 c: "c"
+                l: [ "${a}" [ "${a}" ] ]
             }
             B: {
                 @extends: ..A
@@ -154,7 +155,6 @@ class ExtendsTestCase(unittest.TestCase):
             D: {
                 @extends: @root.B
             }
-
             E: {
                 F.G.H: {
                     a: 1 b: 2 c: 3
@@ -164,6 +164,10 @@ class ExtendsTestCase(unittest.TestCase):
                     @extends: ..H
                 }
             }
+            L: {
+                @extends: ..A
+                a: "l"
+            }
             """
         self.tree = parser.Parser(self.text.splitlines()).root()
 
@@ -171,14 +175,14 @@ class ExtendsTestCase(unittest.TestCase):
         self.assertEquals(self.tree['A']['a'], "a")
         self.assertEquals(self.tree['A']['b'], "b")
         self.assertEquals(self.tree['A']['c'], "c")
-        self.assertEquals(len(self.tree['A']), 3)
+        self.assertEquals(len(self.tree['A']), 4)
 
     def testExtendsAndDelete(self):
         self.assertEquals(self.tree['B']['a'], "a")
         self.assertEquals(self.tree['B']['b'], "b")
         self.assertRaises(KeyError, lambda: self.tree['B']['c'])
         self.assertEquals(self.tree['B']['e'], [ "one", 2, "omg three" ])
-        self.assertEquals(len(self.tree['B']), 3)
+        self.assertEquals(len(self.tree['B']), 4)
 
     def testRefrences(self):
         self.assertEquals(self.tree['C']['a'], "a")
@@ -190,12 +194,16 @@ class ExtendsTestCase(unittest.TestCase):
         self.assertEquals(self.tree['D']['b'], "b")
         self.assertRaises(KeyError, lambda: self.tree['D']['c'])
         self.assertEquals(self.tree['D']['e'], [ "one", 2, "omg three" ])
-        self.assertEquals(len(self.tree['D']), 3)
+        self.assertEquals(len(self.tree['D']), 4)
 
     def testRelativePaths(self):
         self.assertEquals(self.tree['E']['F']['G']['H']['a'], 1)
         self.assertEquals(self.tree['E']['F']['G']['I']['a'], 1)
         self.assertEquals(self.tree['E']['F']['G']['H'], self.tree['E']['F']['G']['I'])
+
+    def testLists(self):
+        self.assertEquals(self.tree['L']['l'][0], "l")
+        self.assertEquals(self.tree['L']['l'][1][0], "l")
 
 class ParseFileTestCase(unittest.TestCase):
 

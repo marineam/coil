@@ -2,6 +2,12 @@
 Change Log
 **********
 
+Version 0.3.20 (2011-03-02)
+===========================
+
+- Properly recursively copy lists when extending a struct. This lead to
+  sharing values across structs which should have been different.
+
 Version 0.3.19 (2010-12-02)
 ===========================
 

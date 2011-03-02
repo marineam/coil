@@ -227,6 +227,14 @@ class ExpansionTestCase(unittest.TestCase):
         root.expand()
         self.assertEquals(root['bar'][0], "omgwtfbbq")
 
+    def testExpandInSubList(self):
+        root = struct.Struct()
+        root["foo"] = "bbq"
+        root["bar"] = [ [ "omgwtf${foo}" ] ]
+        self.assertEquals(root['bar'][0][0], "omgwtf${foo}")
+        root.expand()
+        self.assertEquals(root['bar'][0][0], "omgwtfbbq")
+
     def testExpandMixed(self):
         root = struct.Struct()
         root["foo"] = "${bar}"
