@@ -1,0 +1,24 @@
+How to build a new package:
+0. Make sure your requirements are met:
+
+   - Good stuff like dpkg-dev and devscripts are installed.
+   - You have a GPG key ready to go for package signing.
+   - You may need to set DEBEMAIL and DEBFULLNAME in your environment.
+
+1. Create or fetch a pristine release tarball, for example if using git:
+
+   git archive --format=tar --prefix=coil-0.3.20/ HEAD \
+       | gzip > ../coil_0.3.20.orig.tar.gz
+
+   Note: setup.py sdist won't include everything from the repository.
+
+2. Make sure your checkout is also pristine or at least only includes
+   changes you want to release which will be contained in the source diff.
+
+3. Run debchange to add a new changelog entry:
+
+   debchange -v 0.3.20-1
+
+4. Build and sign the package!
+
+   debuild -i'^\.git/' -sa
