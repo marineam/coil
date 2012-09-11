@@ -4,12 +4,14 @@ Section: python
 Priority: optional
 Build-Depends: debhelper (>= 7), python-support (>= 0.8.4)
 Standards-Version: 3.7.2
-XS-Python-Version: current
+XS-Python-Version: all
 
 Package: python-coil
 Architecture: all
-Depends: ${python:Depends}
-XB-Python-Version: ${python:Versions}
+Depends: ${python:Depends} ${misc:Depends}
 Provides: ${python:Provides}
 Description: A powerful configuration language
+ Coil is a configuration file format that is parsed into a tree of
+ dict like Struct objects. The format supports inheritance, allowing
+ complicated configurations to be as compact as possible.
 
