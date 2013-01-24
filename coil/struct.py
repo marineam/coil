@@ -577,20 +577,44 @@ class Struct(tokenizer.Location, DictMixin):
 
         return self.__class__(self)
 
-    def dict(self):
-        """Recursively copy this :class:`Struct` into :class:`dict` objects"""
+    def dict(self, strict=False, flat=False):
+        """Recursively copy this :class:`Struct` into :class:`dict` objects
+
+        :param strict: If True then fail if the tree contains any
+            values that cannot be represented in the coil text format.
+        :type strict: :class:`bool`
+
+        :param flat: If True this :class:`Struct` is copied into a single
+            :class:`dict` object whose keys are the full paths to the values
+            in the :class:`Struct`.
+        :type flat: :class:`bool`
+
+        :return: :class:`dict` representation of this :class:`Struct`
+        :rtype: :class:`dict`
+        """
 
         new = {}
         for key, value in self.iteritems():
+            if strict:
+                assert self.KEY.match(key)
+
             if isinstance(value, Struct):
-                value = value.dict()
+                value = value.dict(strict, flat)
+                if flat:
+                    new.update(dict([('%s.%s' % (key, k), value[k])
+                                     for k in value]))
+                else:
+                    new[key] = value
             elif isinstance(value, dict):
-                value = value.copy()
+                new[key] = value.copy()
             elif isinstance(value, list):
-                value = list(value)
-            new[key] = value
+                new[key] = list(value)
+            else:
+                new[key] = value
 
         return new
+
+
 
     def path(self, path=None):
         """Get the absolute path of this :class:`Struct` if path is

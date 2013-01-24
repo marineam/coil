@@ -82,6 +82,13 @@ class BasicTestCase(unittest.TestCase):
     def testDict(self):
         self.assertEquals(self.struct['first'].dict(), dict(self.data[0][1]))
 
+    def testFlatDict(self):
+        fd = self.struct.dict(flat=True)
+        s = struct.Struct()
+        for k in fd:
+            s[k] = fd[k]
+        self.assertEquals(self.struct, s)
+
     def testSetShort(self):
         s = struct.Struct()
         s['new'] = True
