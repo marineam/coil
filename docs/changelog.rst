@@ -2,6 +2,11 @@
 Change Log
 **********
 
+Version 0.3.21 (2013-01-25)
+===========================
+
+- Permit the Struct.dict() method to return flattened keys (paths)
+
 Version 0.3.20 (2011-03-02)
 ===========================
 
